@@ -1,34 +1,30 @@
-import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { AppError } from "./AppError";
 
 export function errorHandler(error: unknown) {
 
+    // 1. Validation errors
     if (error instanceof ZodError) {
-        return NextResponse.json(
-            {
-                message: "Validation failed",
-                errors: error.issues,
-            },
-            { status: 400 }
-        );
+        return {
+            success: false,
+            message: "Validation failed",
+            errors: error.issues,
+        };
     }
 
+    // 2. Expected application errors
     if (error instanceof AppError) {
-        return NextResponse.json(
-            {
-                message: error.message,
-            },
-            { status: error.statusCode }
-        );
+        return {
+            success: false,
+            message: error.message,
+        };
     }
 
-    console.error(error);
+    // 3. Unexpected errors
+    console.error("Unexpected error:", error);
 
-    return NextResponse.json(
-        {
-            message: "Internal server error",
-        },
-        { status: 500 }
-    );
+    return {
+        success: false,
+        message: "Something went wrong. Please try again later.",
+    };
 }

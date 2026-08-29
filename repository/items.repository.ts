@@ -157,3 +157,17 @@ export async function deleteItem(cardCode: string) {
 
     return result.recordset[0];
 }
+
+export async function itemNameExists(productName: string) {
+    const pool = await getConnection();
+
+    const result = await pool.request()
+        .input("ProductName", sql.NVarChar, productName)
+        .query(`
+            SELECT TOP 1 1 AS ExistsFlag
+            FROM tbl007
+            WHERE ProductName = @ProductName;
+        `);
+
+    return result.recordset.length > 0;
+}

@@ -14,7 +14,7 @@ export const ItemSchema = z.object({
 
     MaxLimit: z
         .number()
-        .min(0, "Max limit must be greater than or equal to zero")
+        .min(1, "Max limit must be greater than or equal to one")
         .optional(),
 
     Source: z
