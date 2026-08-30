@@ -3,74 +3,70 @@ import { ItemsSchema } from "@/types/items.types";
 import sql from "mssql";
 
 export async function insertItem(item: ItemsSchema) {
-
-
     const pool = await getConnection();
 
-const result = await pool
-    .request()
-    .input("ProductName", sql.NVarChar, item.ProductName)
-    .input("MinLimit", sql.Float, item.MinLimit)
-    .input("MaxLimit", sql.Float, item.MaxLimit)
-    .input("Source", sql.NVarChar, item.Source)
-    .input("Specification", sql.NVarChar, item.Specification)
-    .input("Width", sql.Float, item.Width)
-    .input("Hieght", sql.Float, item.Hieght)
-    .input("CardImage", sql.VarBinary, item.CardImage ?? null)
-    .query(`
-        DECLARE @NewCardCode NVARCHAR(50);
+    const result = await pool
+        .request()
+        .input("ProductName", sql.NVarChar, item.ProductName)
+        .input("MinLimit", sql.Float, item.MinLimit)
+        .input("MaxLimit", sql.Float, item.MaxLimit)
+        .input("Source", sql.NVarChar, item.Source)
+        .input("Specification", sql.NVarChar, item.Specification)
+        .input("Width", sql.Float, item.Width)
+        .input("Hieght", sql.Float, item.Hieght)
+        .input("CardImage", sql.VarBinary, item.CardImage ?? null)
+        .query(`
+            DECLARE @NewCardCode NVARCHAR(50);
 
-        -- Get the next CardCode
-        SELECT @NewCardCode =
-            CAST(
-                ISNULL(
-                    MAX(TRY_CONVERT(INT, CardCode)),
-                    0
-                ) + 1
-                AS NVARCHAR(50)
+            SELECT @NewCardCode =
+                CAST(
+                    ISNULL(
+                        MAX(TRY_CONVERT(INT, CardCode)),
+                        0
+                    ) + 1
+                    AS NVARCHAR(50)
+                )
+            FROM dbo.TBL007;
+
+            INSERT INTO dbo.TBL007 (
+                CardCode,
+                ProductName,
+                MinLimit,
+                MaxLimit,
+                Source,
+                Specification,
+                Width,
+                Hieght,
+                CardImage,
+                GroupGuid
             )
-        FROM dbo.TBL007;
+            VALUES (
+                @NewCardCode,
+                @ProductName,
+                @MinLimit,
+                @MaxLimit,
+                @Source,
+                @Specification,
+                @Width,
+                @Hieght,
+                @CardImage,
+                '679FBA47-E94A-4766-BF8A-6F6605547FF0'
+            );
 
-        -- Insert the item
-        INSERT INTO dbo.TBL007 (
-            CardCode,
-            ProductName,
-            MinLimit,
-            MaxLimit,
-            Source,
-            Specification,
-            Width,
-            Hieght,
-            CardImage,
-            GroupGuid
-        )
-        VALUES (
-            @NewCardCode,
-            @ProductName,
-            @MinLimit,
-            @MaxLimit,
-            @Source,
-            @Specification,
-            @Width,
-            @Hieght,
-            @CardImage,
-            '679FBA47-E94A-4766-BF8A-6F6605547FF0'
-        );
+            SELECT *
+            FROM dbo.TBL007
+            WHERE CardCode = @NewCardCode;
+        `);
 
-        -- Return the inserted row
-        SELECT *
-        FROM dbo.TBL007
-        WHERE CardCode = @NewCardCode;
-    `);
-
-return result.recordset[0];
-
+    return result.recordset[0];
 }
+
 
 export async function getItems(offset: number, limit: number) {
     const pool = await getConnection();
 
-    const result = await pool.request()
+    const result = await pool
+        .request()
         .input("Offset", sql.Int, offset)
         .input("Limit", sql.Int, limit)
         .query(`
@@ -82,11 +78,11 @@ export async function getItems(offset: number, limit: number) {
                 Source,
                 Specification,
                 Width,
-                Hieght ,
-                 cardImage
-            FROM tbl007
-            ORDER BY ID asc
-            OFFSET @Offset ROWS 
+                Hieght,
+                CardImage
+            FROM TBL007
+            ORDER BY ID ASC
+            OFFSET @Offset ROWS
             FETCH NEXT @Limit ROWS ONLY;
         `);
 
@@ -94,11 +90,11 @@ export async function getItems(offset: number, limit: number) {
 }
 
 
-
 export async function getItemByCardCode(cardCode: string) {
     const pool = await getConnection();
 
-    const result = await pool.request()
+    const result = await pool
+        .request()
         .input("CardCode", sql.NVarChar, cardCode)
         .query(`
             SELECT
@@ -109,9 +105,9 @@ export async function getItemByCardCode(cardCode: string) {
                 Source,
                 Specification,
                 Width,
-                Hieght ,
-                 cardImage
-            FROM tbl007
+                Hieght,
+                CardImage
+            FROM TBL007
             WHERE CardCode = @CardCode;
         `);
 
@@ -119,12 +115,15 @@ export async function getItemByCardCode(cardCode: string) {
 }
 
 
-
-
-export async function searchItems(search: string, limit: number, offset: number) {
+export async function searchItems(
+    search: string,
+    limit: number,
+    offset: number
+) {
     const pool = await getConnection();
 
-    const result = await pool.request()
+    const result = await pool
+        .request()
         .input("Search", sql.NVarChar, `${search.trim()}%`)
         .input("Limit", sql.Int, limit)
         .input("Offset", sql.Int, offset)
@@ -138,7 +137,7 @@ export async function searchItems(search: string, limit: number, offset: number)
                 Specification,
                 Width,
                 Hieght
-            FROM tbl007
+            FROM TBL007
             WHERE ProductName LIKE @Search
                OR CardCode LIKE @Search
             ORDER BY ProductName
@@ -150,14 +149,14 @@ export async function searchItems(search: string, limit: number, offset: number)
 }
 
 
-
 export async function updateItem(
     cardCode: string,
     item: ItemsSchema
 ) {
     const pool = await getConnection();
 
-    const result = await pool.request()
+    const result = await pool
+        .request()
         .input("CardCode", sql.NVarChar, cardCode)
         .input("ProductName", sql.NVarChar, item.ProductName)
         .input("MinLimit", sql.Float, item.MinLimit)
@@ -166,9 +165,9 @@ export async function updateItem(
         .input("Specification", sql.NVarChar, item.Specification)
         .input("Width", sql.Float, item.Width)
         .input("Hieght", sql.Float, item.Hieght)
-        .input("CardImage", sql.VarBinary, item.CardImage)
+        .input("CardImage", sql.VarBinary, item.CardImage ?? null)
         .query(`
-            UPDATE tbl007
+            UPDATE TBL007
             SET
                 ProductName = @ProductName,
                 MinLimit = @MinLimit,
@@ -178,36 +177,57 @@ export async function updateItem(
                 Width = @Width,
                 Hieght = @Hieght,
                 CardImage = @CardImage
-            OUTPUT INSERTED.*
             WHERE CardCode = @CardCode;
         `);
 
-    return result.recordset[0];
+    if (result.rowsAffected[0] === 0) {
+        return null;
+    }
+
+    return {
+        CardCode: cardCode,
+        ProductName: item.ProductName,
+        MinLimit: item.MinLimit,
+        MaxLimit: item.MaxLimit,
+        Source: item.Source,
+        Specification: item.Specification,
+        Width: item.Width,
+        Hieght: item.Hieght,
+        CardImage: item.CardImage ?? null,
+    };
 }
 
 
 export async function deleteItem(cardCode: string) {
     const pool = await getConnection();
 
-    const result = await pool.request()
+    const result = await pool
+        .request()
         .input("CardCode", sql.NVarChar, cardCode)
         .query(`
-            DELETE FROM tbl007
-            OUTPUT DELETED.*
+            DELETE FROM TBL007
             WHERE CardCode = @CardCode;
         `);
 
-    return result.recordset[0];
+    if (result.rowsAffected[0] === 0) {
+        return null;
+    }
+
+    return {
+        CardCode: cardCode,
+    };
 }
+
 
 export async function itemNameExists(productName: string) {
     const pool = await getConnection();
 
-    const result = await pool.request()
+    const result = await pool
+        .request()
         .input("ProductName", sql.NVarChar, productName)
         .query(`
             SELECT TOP 1 1 AS ExistsFlag
-            FROM tbl007
+            FROM TBL007
             WHERE ProductName = @ProductName;
         `);
 
