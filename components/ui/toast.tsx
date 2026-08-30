@@ -183,13 +183,31 @@ function ToastList() {
   const { toasts } = ToastPrimitive.useToastManager()
 
   return toasts.map((toastItem) => (
-    <Toast key={toastItem.id} toast={toastItem}>
+    <Toast
+      key={toastItem.id}
+      toast={toastItem}
+      className={
+        toastItem.type === "error"
+          ? "border-red-500 bg-red-500 text-white"
+          : toastItem.type === "success"
+            ? "border-green-500 bg-green-500 text-white"
+            : toastItem.type === "warning"
+              ? "border-yellow-500 bg-yellow-500 text-white"
+              : toastItem.type === "info"
+                ? "border-blue-500 bg-blue-500 text-white"
+                : toastItem.type === "loading"
+                  ? "border-gray-500 bg-gray-500 text-white"
+                  : undefined
+      }
+    >
       <ToastContent>
         <ToastIcon type={toastItem.type} />
+
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <ToastTitle />
           <ToastDescription />
         </div>
+
         <ToastAction />
         <ToastClose />
       </ToastContent>

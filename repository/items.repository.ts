@@ -7,21 +7,63 @@ export async function insertItem(item: ItemsSchema) {
 
     const pool = await getConnection();
 
-    const result = await pool.request().input("ProductName", sql.NVarChar, item.ProductName)
-        .input("MinLimit", sql.Float, item.MinLimit)
-        .input("MaxLimit", sql.Float, item.MaxLimit)
-        .input("Source", sql.NVarChar, item.Source)
-        .input("Specification", sql.NVarChar, item.Specification)
-        .input("Width", sql.Float, item.Width)
-        .input("Hieght", sql.Float, item.Hieght)
-        .input("CardImage", sql.VarBinary, item.CardImage)
-        .query(`
-            INSERT INTO tbl007 (ProductName, MinLimit, MaxLimit, Source, Specification, Width, Hieght, CardImage)
-            OUTPUT INSERTED.*
-            VALUES (@ProductName, @MinLimit, @MaxLimit, @Source, @Specification, @Width, @Hieght , @CardImage);
-        `);
+const result = await pool
+    .request()
+    .input("ProductName", sql.NVarChar, item.ProductName)
+    .input("MinLimit", sql.Float, item.MinLimit)
+    .input("MaxLimit", sql.Float, item.MaxLimit)
+    .input("Source", sql.NVarChar, item.Source)
+    .input("Specification", sql.NVarChar, item.Specification)
+    .input("Width", sql.Float, item.Width)
+    .input("Hieght", sql.Float, item.Hieght)
+    .input("CardImage", sql.VarBinary, item.CardImage ?? null)
+    .query(`
+        DECLARE @NewCardCode NVARCHAR(50);
 
-    return result.recordset[0];
+        -- Get the next CardCode
+        SELECT @NewCardCode =
+            CAST(
+                ISNULL(
+                    MAX(TRY_CONVERT(INT, CardCode)),
+                    0
+                ) + 1
+                AS NVARCHAR(50)
+            )
+        FROM dbo.TBL007;
+
+        -- Insert the item
+        INSERT INTO dbo.TBL007 (
+            CardCode,
+            ProductName,
+            MinLimit,
+            MaxLimit,
+            Source,
+            Specification,
+            Width,
+            Hieght,
+            CardImage,
+            GroupGuid
+        )
+        VALUES (
+            @NewCardCode,
+            @ProductName,
+            @MinLimit,
+            @MaxLimit,
+            @Source,
+            @Specification,
+            @Width,
+            @Hieght,
+            @CardImage,
+            '679FBA47-E94A-4766-BF8A-6F6605547FF0'
+        );
+
+        -- Return the inserted row
+        SELECT *
+        FROM dbo.TBL007
+        WHERE CardCode = @NewCardCode;
+    `);
+
+return result.recordset[0];
 
 }
 

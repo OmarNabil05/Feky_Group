@@ -1,4 +1,5 @@
 import { ItemsSchema } from "@/types/items.types";
+import { AppError } from "@/utils/AppError";
 
 export function LimitsValidation(item: ItemsSchema) {
     const errors: string[] = [];
@@ -20,6 +21,6 @@ export function LimitsValidation(item: ItemsSchema) {
     }
 
     if (errors.length > 0) {
-        throw new Error(errors.join(", "));
+        throw new AppError(errors.join(", "), 400);
     }
 }

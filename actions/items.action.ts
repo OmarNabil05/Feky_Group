@@ -16,6 +16,7 @@ import { withErrorHandler } from "@/utils/witherrorhandler";
 
 // Create
 export async function createItemAction(data: unknown) {
+    console.log("CREATE ITEM DATA:", data);
     return withErrorHandler(() =>
         createItem(data)
     );

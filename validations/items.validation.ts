@@ -32,10 +32,10 @@ export const ItemSchema = z.object({
     Width: z
         .number()
         .min(1, "width must be greater than or equal to one")
-        .optional(),
+       ,
 
     Hieght: z
         .number()
         .min(1, "height must be greater than or equal to one")
-        .optional(),
+        
 });

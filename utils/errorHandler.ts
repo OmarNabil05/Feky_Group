@@ -5,6 +5,8 @@ export function errorHandler(error: unknown) {
 
     // 1. Validation errors
     if (error instanceof ZodError) {
+        console.error("ZOD ERROR:", error.issues);
+
         return {
             success: false,
             message: "Validation failed",
@@ -14,6 +16,8 @@ export function errorHandler(error: unknown) {
 
     // 2. Expected application errors
     if (error instanceof AppError) {
+        console.error("APP ERROR:", error.message);
+
         return {
             success: false,
             message: error.message,
@@ -21,7 +25,7 @@ export function errorHandler(error: unknown) {
     }
 
     // 3. Unexpected errors
-    console.error("Unexpected error:", error);
+    console.error("🔥 UNEXPECTED ERROR:", error);
 
     return {
         success: false,
