@@ -3,8 +3,17 @@
 
 import * as React from "react";
 import * as z from "zod";
+
+import {
+    Controller,
+    FieldValues,
+    Path,
+    useForm,
+    DefaultValues,
+    Resolver,
+} from "react-hook-form";
+
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Controller, useForm } from "react-hook-form";
 import { CircleAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -39,248 +48,699 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 
-import { ItemSchema } from "@/validations/items.validation";
+import { toast } from "@/components/ui/toast";
 
-type FormData = z.infer<typeof ItemSchema>;
 
 /*
- * The item returned from the database can contain
- * fields that are NOT part of the form schema.
- *
- * CardCode is one of those fields.
+ * =========================================================
+ * FIELD CONFIGURATION
+ * =========================================================
  */
-type CreatedItem = FormData & {
-    CardCode: string;
+
+export type FormField<
+    TFormData extends FieldValues
+> = {
+    name: Path<TFormData>;
+    label: string;
+    type: "text" | "number";
+    placeholder?: string;
 };
 
+
 /*
- * Result returned by createItemAction.
+ * =========================================================
+ * SUBMIT RESULT
+ * =========================================================
  */
-type SubmitResult = {
+
+type SubmitResult<TData> = {
     success: boolean;
     message?: string;
-    data?: CreatedItem;
+    data?: TData;
 };
+
+
+/*
+ * =========================================================
+ * DELETE RESULT
+ * =========================================================
+ */
 
 type DeleteResult = {
     success: boolean;
     message?: string;
 };
 
-type FormProps = {
-    defaultValues?: Partial<FormData>;
+
+/*
+ * =========================================================
+ * FORM PROPS
+ * =========================================================
+ *
+ * TUpdateData is ONE object.
+ *
+ * Example:
+ *
+ * {
+ *     cardCode: "CARD001",
+ *     item: formData
+ * }
+ *
+ * This is intentional.
+ *
+ * We do NOT spread it.
+ * =========================================================
+ */
+
+type FormProps<
+    TFormData extends FieldValues,
+    TCreatedData,
+    TDeleteData,
+    TUpdateData extends object
+> = {
+
+    schema: z.ZodType<TFormData>;
+
+    fields: FormField<TFormData>[];
+
+    defaultValues?: DefaultValues<TFormData>;
+
+
+    /*
+     * CREATE
+     */
 
     onSubmit: (
-        data: FormData
-    ) => Promise<SubmitResult>;
+        data: TFormData
+    ) => Promise<SubmitResult<TCreatedData>>;
+
+
+    /*
+     * DELETE
+     */
+
+    getDeleteData: (
+        data: TCreatedData
+    ) => TDeleteData;
 
     onDelete: (
-        cardCode: string
+        data: TDeleteData
     ) => Promise<DeleteResult>;
+
+
+    /*
+     * UPDATE
+     *
+     * Convert:
+     *
+     * createdData + formData
+     *
+     * into the object required
+     * by the update action.
+     */
+
+    getUpdateData: (
+        createdData: TCreatedData,
+        formData: TFormData
+    ) => TUpdateData;
+
+
+    /*
+     * UPDATE ACTION
+     *
+     * Receives ONE object.
+     */
+
+    onUpdate: (
+        data: TUpdateData
+    ) => Promise<SubmitResult<TCreatedData>>;
+
+
+    children?: React.ReactNode;
 
     submitText?: string;
     loadingText?: string;
     title?: string;
+
+    successTitle?: string;
+    successDescription?: string;
+
+    updateSuccessTitle?: string;
+    updateSuccessDescription?: string;
 };
 
-export default function Form({
+
+/*
+ * =========================================================
+ * GENERAL FORM
+ * =========================================================
+ */
+
+export default function Form<
+    TFormData extends FieldValues,
+    TCreatedData,
+    TDeleteData,
+    TUpdateData extends object
+>({
+    schema,
+    fields,
     defaultValues,
+
     onSubmit,
+
+    getDeleteData,
     onDelete,
-    submitText = "Add Item",
-    loadingText = "Adding...",
-    title = "Add Item",
-}: FormProps) {
 
-    const form = useForm<FormData>({
-        resolver: zodResolver(ItemSchema),
+    getUpdateData,
+    onUpdate,
 
-        defaultValues: {
-            ProductName: "",
-            MinLimit: undefined,
-            MaxLimit: undefined,
-            Source: "",
-            Specification: "",
-            Width: undefined,
-            Hieght: undefined,
+    children,
 
-            ...defaultValues,
-        },
-    });
+    submitText = "Submit",
+    loadingText = "Submitting...",
+    title = "Form",
+
+    successTitle = "Successfully Added",
+
+    successDescription =
+    "The record was successfully inserted.",
+
+    updateSuccessTitle =
+    "Successfully Updated",
+
+    updateSuccessDescription =
+    "The record was successfully updated.",
+
+}: FormProps<
+    TFormData,
+    TCreatedData,
+    TDeleteData,
+    TUpdateData
+>) {
+
 
     /*
-     * Prevent double submission.
+     * =====================================================
+     * REACT HOOK FORM
+     * =====================================================
      */
+
+    const form = useForm<TFormData>({
+        resolver:
+            zodResolver(schema as any) as Resolver<TFormData>,
+
+        defaultValues,
+    });
+
+
+    /*
+     * =====================================================
+     * STATE
+     * =====================================================
+     */
+
     const [isSubmitting, setIsSubmitting] =
         React.useState(false);
 
-    /*
-     * The item returned after successful creation.
-     */
-    const [insertedItem, setInsertedItem] =
-        React.useState<CreatedItem | null>(null);
+    const [insertedData, setInsertedData] =
+        React.useState<TCreatedData | null>(null);
 
-    /*
-     * Controls the success dialog.
-     */
     const [showDialog, setShowDialog] =
         React.useState(false);
 
-    /*
-     * Prevents multiple Undo clicks.
-     */
     const [isDeleting, setIsDeleting] =
         React.useState(false);
 
+    const [isEditing, setIsEditing] =
+        React.useState(false);
+
+    const [dialogMode, setDialogMode] =
+        React.useState<"create" | "update">("create");
+
 
     /*
-     * SUBMIT
+     * =====================================================
+     * CLEAR FORM
+     * =====================================================
      */
-    async function handleSubmit(data: FormData) {
+
+    function clearForm() {
+
+        const emptyValues:
+            Record<string, unknown> = {};
+
+        for (const field of fields) {
+
+            emptyValues[field.name] =
+                field.type === "number"
+                    ? undefined
+                    : "";
+        }
+
+        form.reset(
+            emptyValues as DefaultValues<TFormData>
+        );
+
+        setIsEditing(false);
+    }
+
+
+    /*
+     * =====================================================
+     * SUBMIT
+     * =====================================================
+     */
+
+    async function handleSubmit(
+        data: TFormData
+    ) {
 
         try {
 
             setIsSubmitting(true);
 
-            const result = await onSubmit(data);
 
             /*
-             * Backend returned an error.
-             *
-             * The action already converted the error
-             * into { success: false, message }.
+             * =================================================
+             * UPDATE MODE
+             * =================================================
              */
+
+            if (isEditing && insertedData) {
+
+                /*
+                 * Build the COMPLETE update object.
+                 *
+                 * Example:
+                 *
+                 * {
+                 *     cardCode: "CARD001",
+                 *     item: data
+                 * }
+                 */
+
+                const updateData =
+                    getUpdateData(
+                        insertedData,
+                        data
+                    );
+
+
+                /*
+                 * IMPORTANT:
+                 *
+                 * Make sure getUpdateData()
+                 * actually returned an object.
+                 */
+
+                if (
+                    updateData === null ||
+                    updateData === undefined
+                ) {
+
+                    console.error(
+                        "getUpdateData() returned undefined/null."
+                    );
+
+                    toast.add({
+                        type: "error",
+                        title: "Update Error",
+                        description:
+                            "Update data was not created correctly.",
+                    });
+
+                    return;
+                }
+
+
+                /*
+                 * Call update action.
+                 *
+                 * ONE argument.
+                 *
+                 * NO spread.
+                 */
+
+                const result =
+                    await onUpdate(
+                        updateData
+                    );
+
+
+                /*
+                 * UPDATE FAILED
+                 */
+
+                if (!result.success) {
+
+                    toast.add({
+                        type: "error",
+                        title: "Error",
+                        description:
+                            result.message ??
+                            "Failed to update.",
+                    });
+
+                    return;
+                }
+
+
+                /*
+                 * UPDATE SUCCEEDED
+                 * BUT NO DATA RETURNED
+                 */
+
+                if (!result.data) {
+
+                    toast.add({
+                        type: "error",
+                        title: "Error",
+                        description:
+                            "Update succeeded but no data was returned.",
+                    });
+
+                    return;
+                }
+
+
+                /*
+                 * Save updated object.
+                 */
+
+                setInsertedData(
+                    result.data
+                );
+
+
+                /*
+                 * Dialog is for UPDATE.
+                 */
+
+                setDialogMode("update");
+
+
+                /*
+                 * Leave edit mode.
+                 */
+
+                setIsEditing(false);
+
+
+                /*
+                 * Success toast.
+                 */
+
+                toast.add({
+                    type: "success",
+                    title: "Success",
+                    description:
+                        "Item updated successfully.",
+                });
+
+
+                /*
+                 * Clear form.
+                 */
+
+                clearForm();
+
+
+                /*
+                 * Show dialog.
+                 */
+
+                setShowDialog(true);
+
+                return;
+            }
+
+
+            /*
+             * =================================================
+             * CREATE MODE
+             * =================================================
+             */
+
+            const result =
+                await onSubmit(data);
+
+
+            /*
+             * CREATE FAILED
+             */
+
             if (!result.success) {
 
-                console.error(
-                    result.message ?? "Failed to create item"
-                );
+                toast.add({
+                    type: "error",
+                    title: "Error",
+                    description:
+                        result.message ??
+                        "Failed to submit.",
+                });
 
                 return;
             }
 
+
             /*
-             * We need the inserted item.
+             * CREATE SUCCEEDED
+             * BUT NO DATA RETURNED
              */
+
             if (!result.data) {
 
-                console.error(
-                    "Item was created but no item data was returned."
-                );
+                toast.add({
+                    type: "error",
+                    title: "Error",
+                    description:
+                        "Operation succeeded but no data was returned.",
+                });
 
                 return;
             }
 
-            /*
-             * Save the inserted item.
-             */
-            setInsertedItem(result.data);
 
             /*
-             * Open success dialog.
+             * Save created object.
              */
+
+            setInsertedData(
+                result.data
+            );
+
+
+            /*
+             * Dialog is for CREATE.
+             */
+
+            setDialogMode("create");
+
+
+            /*
+             * Success toast.
+             */
+
+            toast.add({
+                type: "success",
+                title: "Success",
+                description:
+                    "Record added successfully.",
+            });
+
+
+            /*
+             * Show dialog.
+             */
+
             setShowDialog(true);
 
+
             /*
-             * Clear the form.
+             * Clear form.
              */
-            form.reset();
+
+            clearForm();
+
+        } catch (error) {
+
+            console.error(
+                "Form submission error:",
+                error
+            );
+
+            toast.add({
+                type: "error",
+                title: "Error",
+                description:
+                    error instanceof Error
+                        ? error.message
+                        : "An unexpected error occurred.",
+            });
 
         } finally {
 
             setIsSubmitting(false);
-
         }
     }
 
 
     /*
+     * =====================================================
      * EDIT
-     *
-     * Put the inserted item's form fields
-     * back into React Hook Form.
+     * =====================================================
      */
-    function editInsertedItem() {
 
-        if (!insertedItem) {
+    function editInsertedData() {
+
+        if (!insertedData) {
             return;
         }
 
-        /*
-         * CardCode is NOT part of the form.
-         * We only put form fields back into the form.
-         */
-        form.reset({
-            ProductName: insertedItem.ProductName,
-            MinLimit: insertedItem.MinLimit,
-            MaxLimit: insertedItem.MaxLimit,
-            Source: insertedItem.Source,
-            Specification: insertedItem.Specification,
-            Width: insertedItem.Width,
-            Hieght: insertedItem.Hieght,
-        });
+
+        const values:
+            Partial<TFormData> = {};
+
+
+        const createdObject =
+            insertedData as Record<
+                string,
+                unknown
+            >;
+
+
+        for (const fieldConfig of fields) {
+
+            const fieldName =
+                fieldConfig.name;
+
+            const value =
+                createdObject[fieldName];
+
+
+            if (value !== undefined) {
+
+                (
+                    values as Record<
+                        string,
+                        unknown
+                    >
+                )[fieldName] = value;
+            }
+        }
+
+
+        form.reset(
+            values as DefaultValues<TFormData>
+        );
+
+
+        setIsEditing(true);
 
         setShowDialog(false);
     }
 
 
     /*
-     * UNDO
-     *
-     * The Form does NOT need to know how deletion works.
-     *
-     * It only gives CardCode to the parent's onDelete.
+     * =====================================================
+     * UNDO / DELETE
+     * =====================================================
      */
-    async function undoInsertedItem() {
 
-        if (!insertedItem) {
+    async function undoInsertedData() {
+
+        if (!insertedData) {
             return;
         }
+
 
         try {
 
             setIsDeleting(true);
 
-            const result = await onDelete(
-                insertedItem.CardCode
-            );
+
+            const deleteData =
+                getDeleteData(
+                    insertedData
+                );
+
+
+            const result =
+                await onDelete(
+                    deleteData
+                );
+
 
             if (!result.success) {
 
-                console.error(
-                    result.message ?? "Failed to delete item"
-                );
+                toast.add({
+                    type: "error",
+                    title: "Error",
+                    description:
+                        result.message ??
+                        "Failed to delete.",
+                });
 
                 return;
             }
 
-            /*
-             * Delete succeeded.
-             */
-            setInsertedItem(null);
+
+            toast.add({
+                type: "success",
+                title: "Success",
+                description:
+                    "Record deleted successfully.",
+            });
+
+
+            setInsertedData(null);
+
+            setIsEditing(false);
+
             setShowDialog(false);
-            form.reset();
+
+            clearForm();
+
+        } catch (error) {
+
+            console.error(
+                "Delete error:",
+                error
+            );
+
+            toast.add({
+                type: "error",
+                title: "Error",
+                description:
+                    error instanceof Error
+                        ? error.message
+                        : "Failed to delete.",
+            });
 
         } finally {
 
             setIsDeleting(false);
-
         }
     }
 
 
     /*
+     * =====================================================
      * ERROR POPOVER
+     * =====================================================
      */
-    function renderError(error?: string) {
 
+    function renderError(
+        error?: {
+            message?: string;
+        }
+    ) {
         if (!error) {
             return null;
         }
 
         return (
             <Popover>
-
                 <PopoverTrigger
                     render={
                         <Button
@@ -295,26 +755,30 @@ export default function Form({
                 />
 
                 <PopoverContent>
-
                     <p className="text-sm text-destructive">
-                        {error}
+                        {error.message ?? "Invalid value"}
                     </p>
-
                 </PopoverContent>
-
             </Popover>
         );
     }
 
+    /*
+     * =====================================================
+     * RENDER
+     * =====================================================
+     */
 
     return (
         <>
             <Card className="w-full">
 
                 <CardHeader>
+
                     <CardTitle>
                         {title}
                     </CardTitle>
+
                 </CardHeader>
 
 
@@ -322,265 +786,147 @@ export default function Form({
 
                     <form
                         id="ready-form"
-                        onSubmit={form.handleSubmit(handleSubmit)}
+                        onSubmit={
+                            form.handleSubmit(
+                                handleSubmit
+                            )
+                        }
                     >
 
                         <FieldGroup>
 
-                            {/* Product Name */}
+                            {fields.map(
+                                (fieldConfig) => (
 
-                            <Controller
-                                name="ProductName"
-                                control={form.control}
-                                render={({ field, fieldState }) => (
+                                    <Controller
+                                        key={
+                                            fieldConfig.name
+                                        }
 
-                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                        name={
+                                            fieldConfig.name
+                                        }
 
-                                        <FieldLabel className="w-full shrink-0 sm:w-40">
-                                            Product Name
-                                        </FieldLabel>
+                                        control={
+                                            form.control
+                                        }
 
-                                        <div className="flex w-full gap-2">
+                                        render={({
+                                            field,
+                                            fieldState,
+                                        }) => (
 
-                                            <Input
-                                                {...field}
-                                                placeholder="Product Name"
-                                                aria-invalid={fieldState.invalid}
-                                            />
+                                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
 
-                                            {renderError(
-                                                fieldState.error?.message
-                                            )}
+                                                <FieldLabel className="w-full shrink-0 sm:w-40">
 
-                                        </div>
+                                                    {
+                                                        fieldConfig.label
+                                                    }
 
-                                    </div>
-                                )}
-                            />
+                                                </FieldLabel>
 
 
-                            {/* Source */}
+                                                <div className="flex w-full gap-2">
 
-                            <Controller
-                                name="Source"
-                                control={form.control}
-                                render={({ field, fieldState }) => (
+                                                    {fieldConfig.type ===
+                                                        "number" ? (
 
-                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                                        <Input
+                                                            type="number"
 
-                                        <FieldLabel className="w-full shrink-0 sm:w-40">
-                                            Source
-                                        </FieldLabel>
+                                                            placeholder={
+                                                                fieldConfig.placeholder ??
+                                                                fieldConfig.label
+                                                            }
 
-                                        <div className="flex w-full gap-2">
+                                                            value={
+                                                                field.value ??
+                                                                ""
+                                                            }
 
-                                            <Input
-                                                {...field}
-                                                placeholder="Source"
-                                                aria-invalid={fieldState.invalid}
-                                            />
+                                                            onChange={(
+                                                                e
+                                                            ) => {
 
-                                            {renderError(
-                                                fieldState.error?.message
-                                            )}
+                                                                const value =
+                                                                    e.target.value;
 
-                                        </div>
+                                                                field.onChange(
+                                                                    value === ""
+                                                                        ? undefined
+                                                                        : Number(
+                                                                            value
+                                                                        )
+                                                                );
+                                                            }}
 
-                                    </div>
-                                )}
-                            />
+                                                            onBlur={
+                                                                field.onBlur
+                                                            }
 
+                                                            name={
+                                                                field.name
+                                                            }
 
-                            {/* Specification */}
+                                                            ref={
+                                                                field.ref
+                                                            }
 
-                            <Controller
-                                name="Specification"
-                                control={form.control}
-                                render={({ field, fieldState }) => (
+                                                            aria-invalid={
+                                                                fieldState.invalid
+                                                            }
+                                                        />
 
-                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                                    ) : (
 
-                                        <FieldLabel className="w-full shrink-0 sm:w-40">
-                                            Specification
-                                        </FieldLabel>
+                                                        <Input
+                                                            type="text"
 
-                                        <div className="flex w-full gap-2">
+                                                            value={
+                                                                field.value ??
+                                                                ""
+                                                            }
 
-                                            <Input
-                                                {...field}
-                                                placeholder="Specification"
-                                                aria-invalid={fieldState.invalid}
-                                            />
+                                                            onChange={
+                                                                field.onChange
+                                                            }
 
-                                            {renderError(
-                                                fieldState.error?.message
-                                            )}
+                                                            onBlur={
+                                                                field.onBlur
+                                                            }
 
-                                        </div>
+                                                            name={
+                                                                field.name
+                                                            }
 
-                                    </div>
-                                )}
-                            />
+                                                            ref={
+                                                                field.ref
+                                                            }
 
+                                                            placeholder={
+                                                                fieldConfig.placeholder ??
+                                                                fieldConfig.label
+                                                            }
 
-                            {/* Minimum Limit */}
+                                                            aria-invalid={
+                                                                fieldState.invalid
+                                                            }
+                                                        />
+                                                    )}
 
-                            <Controller
-                                name="MinLimit"
-                                control={form.control}
-                                render={({ field, fieldState }) => (
-
-                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-
-                                        <FieldLabel className="w-full shrink-0 sm:w-40">
-                                            Minimum Limit
-                                        </FieldLabel>
-
-                                        <div className="flex w-full gap-2">
-
-                                            <Input
-                                                type="number"
-                                                placeholder="Minimum Limit"
-                                                value={field.value ?? ""}
-                                                onChange={(e) =>
-                                                    field.onChange(
-                                                        e.target.value === ""
-                                                            ? undefined
-                                                            : Number(e.target.value)
-                                                    )
-                                                }
-                                                aria-invalid={fieldState.invalid}
-                                            />
 
-                                            {renderError(
-                                                fieldState.error?.message
-                                            )}
+                                              {renderError(fieldState.error)}
 
-                                        </div>
+                                                </div>
 
-                                    </div>
-                                )}
-                            />
+                                            </div>
+                                        )}
+                                    />
+                                )
+                            )}
 
-
-                            {/* Maximum Limit */}
-
-                            <Controller
-                                name="MaxLimit"
-                                control={form.control}
-                                render={({ field, fieldState }) => (
-
-                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-
-                                        <FieldLabel className="w-full shrink-0 sm:w-40">
-                                            Maximum Limit
-                                        </FieldLabel>
-
-                                        <div className="flex w-full gap-2">
-
-                                            <Input
-                                                type="number"
-                                                placeholder="Maximum Limit"
-                                                value={field.value ?? ""}
-                                                onChange={(e) =>
-                                                    field.onChange(
-                                                        e.target.value === ""
-                                                            ? undefined
-                                                            : Number(e.target.value)
-                                                    )
-                                                }
-                                                aria-invalid={fieldState.invalid}
-                                            />
-
-                                            {renderError(
-                                                fieldState.error?.message
-                                            )}
-
-                                        </div>
-
-                                    </div>
-                                )}
-                            />
-
-
-                            {/* Width */}
-
-                            <Controller
-                                name="Width"
-                                control={form.control}
-                                render={({ field, fieldState }) => (
-
-                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-
-                                        <FieldLabel className="w-full shrink-0 sm:w-40">
-                                            Width
-                                        </FieldLabel>
-
-                                        <div className="flex w-full gap-2">
-
-                                            <Input
-                                                type="number"
-                                                placeholder="Width"
-                                                value={field.value ?? ""}
-                                                onChange={(e) =>
-                                                    field.onChange(
-                                                        e.target.value === ""
-                                                            ? undefined
-                                                            : Number(e.target.value)
-                                                    )
-                                                }
-                                                aria-invalid={fieldState.invalid}
-                                            />
-
-                                            {renderError(
-                                                fieldState.error?.message
-                                            )}
-
-                                        </div>
-
-                                    </div>
-                                )}
-                            />
-
-
-                            {/* Height */}
-
-                            <Controller
-                                name="Hieght"
-                                control={form.control}
-                                render={({ field, fieldState }) => (
-
-                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-
-                                        <FieldLabel className="w-full shrink-0 sm:w-40">
-                                            Height
-                                        </FieldLabel>
-
-                                        <div className="flex w-full gap-2">
-
-                                            <Input
-                                                type="number"
-                                                placeholder="Height"
-                                                value={field.value ?? ""}
-                                                onChange={(e) =>
-                                                    field.onChange(
-                                                        e.target.value === ""
-                                                            ? undefined
-                                                            : Number(e.target.value)
-                                                    )
-                                                }
-                                                aria-invalid={fieldState.invalid}
-                                            />
-
-                                            {renderError(
-                                                fieldState.error?.message
-                                            )}
-
-                                        </div>
-
-                                    </div>
-                                )}
-                            />
+                            {children}
 
                         </FieldGroup>
 
@@ -589,24 +935,34 @@ export default function Form({
                 </CardContent>
 
 
-                <CardFooter className="flex gap-2 py-2 justify-center lg:justify-end">
+                <CardFooter className="flex justify-center gap-2 py-2 lg:justify-end">
 
                     <Button
                         type="submit"
                         form="ready-form"
-                        disabled={isSubmitting}
+                        disabled={
+                            isSubmitting
+                        }
                     >
+
                         {isSubmitting
                             ? loadingText
-                            : submitText}
+                            : isEditing
+                                ? "Update"
+                                : submitText}
+
                     </Button>
 
 
                     <Button
                         type="button"
                         variant="outline"
-                        onClick={() => form.reset()}
-                        disabled={isSubmitting}
+                        onClick={
+                            clearForm
+                        }
+                        disabled={
+                            isSubmitting
+                        }
                     >
                         Reset
                     </Button>
@@ -616,11 +972,15 @@ export default function Form({
             </Card>
 
 
-            {/* SUCCESS DIALOG */}
+            {/* =================================================
+                SUCCESS DIALOG
+            ================================================= */}
 
             <Dialog
                 open={showDialog}
-                onOpenChange={setShowDialog}
+                onOpenChange={
+                    setShowDialog
+                }
             >
 
                 <DialogContent className="w-[95%] max-w-lg">
@@ -628,27 +988,35 @@ export default function Form({
                     <DialogHeader>
 
                         <DialogTitle>
-                            Item Added Successfully
+
+                            {dialogMode === "update"
+                                ? updateSuccessTitle
+                                : successTitle}
+
                         </DialogTitle>
 
+
                         <DialogDescription>
-                            The item was successfully inserted
-                            into the database.
+
+                            {dialogMode === "update"
+                                ? updateSuccessDescription
+                                : successDescription}
+
                         </DialogDescription>
 
                     </DialogHeader>
 
 
-                    {/* INSERTED ITEM */}
-
                     <div className="rounded-lg border bg-muted p-4">
 
-                        <pre className="max-h-80 overflow-auto text-sm whitespace-pre-wrap break-words">
+                        <pre className="max-h-80 overflow-auto text-sm whitespace-pre-wrap wrap-break-word">
+
                             {JSON.stringify(
-                                insertedItem,
+                                insertedData,
                                 null,
                                 2
                             )}
+
                         </pre>
 
                     </div>
@@ -656,40 +1024,46 @@ export default function Form({
 
                     <DialogFooter className="flex flex-col gap-2 sm:flex-row">
 
-                        {/* EDIT */}
-
                         <Button
                             type="button"
                             variant="outline"
-                            onClick={editInsertedItem}
-                            disabled={isDeleting}
+                            onClick={
+                                editInsertedData
+                            }
+                            disabled={
+                                isDeleting
+                            }
                         >
                             Edit
                         </Button>
 
 
-                        {/* UNDO */}
-
                         <Button
                             type="button"
                             variant="destructive"
-                            onClick={undoInsertedItem}
-                            disabled={isDeleting}
+                            onClick={
+                                undoInsertedData
+                            }
+                            disabled={
+                                isDeleting
+                            }
                         >
+
                             {isDeleting
                                 ? "Undoing..."
                                 : "Undo"}
+
                         </Button>
 
-
-                        {/* CLOSE */}
 
                         <Button
                             type="button"
                             onClick={() =>
                                 setShowDialog(false)
                             }
-                            disabled={isDeleting}
+                            disabled={
+                                isDeleting
+                            }
                         >
                             Close
                         </Button>

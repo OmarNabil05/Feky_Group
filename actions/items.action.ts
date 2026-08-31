@@ -53,17 +53,20 @@ export async function searchItemsAction(
     );
 }
 
-
-// Update
+//update
 export async function updateItemAction(
-    cardCode: string,
-    data: unknown
+    data: {
+        cardCode: string;
+        item: unknown;
+    }
 ) {
     return withErrorHandler(() =>
-        UpdateAnItem(cardCode, data)
+        UpdateAnItem(
+            data.cardCode,
+            data.item
+        )
     );
 }
-
 
 // Delete
 export async function deleteItemAction(

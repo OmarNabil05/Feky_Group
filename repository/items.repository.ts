@@ -53,7 +53,7 @@ export async function insertItem(item: ItemsSchema) {
                 '679FBA47-E94A-4766-BF8A-6F6605547FF0'
             );
 
-            SELECT *
+            SELECT CardCode , ProductName , Source , Specification,MinLimit, MaxLimit, Width ,Hieght
             FROM dbo.TBL007
             WHERE CardCode = @NewCardCode;
         `);
