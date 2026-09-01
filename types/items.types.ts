@@ -7,4 +7,5 @@ export interface ItemsSchema {
     Width?: number;
     Hieght?: number;
     CardImage?: Buffer;
+    CardCode?: string;
 }

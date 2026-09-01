@@ -20,7 +20,7 @@ export function errorHandler(error: unknown) {
 
         return {
             success: false,
-            message: error.message,
+               message: error.message,
         };
     }
 

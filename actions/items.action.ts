@@ -24,15 +24,15 @@ export async function createItemAction(data: unknown) {
 }
 
 
-// Get all
-export async function getItemsAction(
-    offset: number,
-    limit: number
-) {
-    return withErrorHandler(() =>
-        getAllItems(offset, limit)
-    );
-}
+    // Get all
+    export async function getItemsAction(
+        offset: number,
+        limit: number
+    ) {
+        return withErrorHandler(() =>
+            getAllItems(offset, limit)
+        );
+    }
 
 
 // Get one by CardCode
