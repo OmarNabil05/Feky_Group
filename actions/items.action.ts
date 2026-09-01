@@ -7,7 +7,8 @@ import {
     searchForItems,
     UpdateAnItem,
     deleteAnItem,
-    itemNameFound
+    itemNameFound,
+    getNumberOfItems
 
 } from "@/services/items.service";
 
@@ -84,4 +85,8 @@ export async function itemFoundBefore(
     return withErrorHandler(() =>
         itemNameFound(productName)
     );
+}
+
+export async function GetItemsNumbers() {
+    return withErrorHandler(() => getNumberOfItems())
 }

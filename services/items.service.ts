@@ -8,6 +8,7 @@ import {
     updateItem,
     deleteItem,
     itemNameExists,
+    getItemsNumber
 } from "@/repository/items.repository";
 
 import { AppError } from "@/utils/AppError";
@@ -122,4 +123,9 @@ export async function itemNameFound(productName: string) {
     const isFound: boolean = await itemNameExists(productName);
 
     return isFound;
+}
+
+export async function getNumberOfItems() {
+    const NumberOfItems = await getItemsNumber();
+    return NumberOfItems;
 }

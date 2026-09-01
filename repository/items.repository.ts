@@ -233,3 +233,12 @@ export async function itemNameExists(productName: string) {
 
     return result.recordset.length > 0;
 }
+
+export async function getItemsNumber() {
+    
+    const pool = await getConnection();
+
+    const result = await pool.request().query('select count(productName) from TBL007');
+
+    return result;
+}
