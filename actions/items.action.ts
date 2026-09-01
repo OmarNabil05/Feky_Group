@@ -8,7 +8,8 @@ import {
     UpdateAnItem,
     deleteAnItem,
     itemNameFound,
-    getNumberOfItems
+    getNumberOfItems,
+    getSearchItemsCount
 
 } from "@/services/items.service";
 
@@ -24,15 +25,15 @@ export async function createItemAction(data: unknown) {
 }
 
 
-    // Get all
-    export async function getItemsAction(
-        offset: number,
-        limit: number
-    ) {
-        return withErrorHandler(() =>
-            getAllItems(offset, limit)
-        );
-    }
+// Get all
+export async function getItemsAction(
+    offset: number,
+    limit: number
+) {
+    return withErrorHandler(() =>
+        getAllItems(offset, limit)
+    );
+}
 
 
 // Get one by CardCode
@@ -89,4 +90,11 @@ export async function itemFoundBefore(
 
 export async function GetItemsNumbers() {
     return withErrorHandler(() => getNumberOfItems())
+}
+
+
+export async function GetSearchItemsNumbers(search: string) {
+    return withErrorHandler(() =>
+        getSearchItemsCount(search)
+    );
 }

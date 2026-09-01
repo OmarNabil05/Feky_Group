@@ -235,10 +235,29 @@ export async function itemNameExists(productName: string) {
 }
 
 export async function getItemsNumber() {
-    
     const pool = await getConnection();
 
-    const result = await pool.request().query('select count(productName) from TBL007');
+    const result = await pool.request().query(`
+        SELECT COUNT(ProductName) AS Total
+        FROM TBL007;
+    `);
 
-    return result;
+    return result.recordset[0].Total;
+}
+
+
+export async function getSearchItemsNumber(search: string) {
+    const pool = await getConnection();
+
+    const result = await pool
+        .request()
+        .input("Search", sql.NVarChar, `${search.trim()}%`)
+        .query(`
+            SELECT COUNT(*) AS Total
+            FROM TBL007
+            WHERE ProductName LIKE @Search
+               OR CardCode LIKE @Search;
+        `);
+
+    return result.recordset[0].Total;
 }

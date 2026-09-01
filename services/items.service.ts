@@ -8,7 +8,8 @@ import {
     updateItem,
     deleteItem,
     itemNameExists,
-    getItemsNumber
+    getItemsNumber,
+    getSearchItemsNumber,
 } from "@/repository/items.repository";
 
 import { AppError } from "@/utils/AppError";
@@ -129,3 +130,13 @@ export async function getNumberOfItems() {
     const NumberOfItems = await getItemsNumber();
     return NumberOfItems;
 }
+
+
+export async function getSearchItemsCount(search: string) {
+    if (!search.trim()) {
+        throw new AppError("Search value is required", 400);
+    }
+
+    return await getSearchItemsNumber(search);
+}
+
