@@ -74,7 +74,7 @@ export type FormField<
  * =========================================================
  */
 
-type SubmitResult<TData> = {
+export type SubmitResult<TData> = {
     success: boolean;
     message?: string;
     data?: TData;
@@ -95,21 +95,26 @@ type DeleteResult = {
 
 /*
  * =========================================================
- * FORM PROPS
+ * FORM MODE
  * =========================================================
  *
- * TUpdateData is ONE object.
+ * create:
+ *      Existing Form behavior.
  *
- * Example:
- *
- * {
- *     cardCode: "CARD001",
- *     item: formData
- * }
- *
- * This is intentional.
- *
- * We do NOT spread it.
+ * edit:
+ *      Used when editing an existing record,
+ *      for example from a DataTable.
+ * =========================================================
+ */
+
+export type FormMode = "create" | "edit";
+
+export type FormVariant = "card" | "plain";
+
+
+/*
+ * =========================================================
+ * FORM PROPS
  * =========================================================
  */
 
@@ -128,65 +133,115 @@ type FormProps<
 
 
     /*
+     * =====================================================
      * CREATE
+     * =====================================================
      */
 
-    onSubmit: (
+    onSubmit?: (
         data: TFormData
     ) => Promise<SubmitResult<TCreatedData>>;
 
 
     /*
+     * =====================================================
      * DELETE
+     * =====================================================
      */
 
-    getDeleteData: (
+    getDeleteData?: (
         data: TCreatedData
     ) => TDeleteData;
 
-    onDelete: (
+    onDelete?: (
         data: TDeleteData
     ) => Promise<DeleteResult>;
 
 
     /*
-     * UPDATE
+     * =====================================================
+     * EXISTING CREATE -> EDIT FLOW
+     * =====================================================
      *
-     * Convert:
-     *
-     * createdData + formData
-     *
-     * into the object required
-     * by the update action.
+     * This is your original update system.
      */
 
-    getUpdateData: (
+    getUpdateData?: (
         createdData: TCreatedData,
         formData: TFormData
     ) => TUpdateData;
 
-
-    /*
-     * UPDATE ACTION
-     *
-     * Receives ONE object.
-     */
-
-    onUpdate: (
+    onUpdate?: (
         data: TUpdateData
     ) => Promise<SubmitResult<TCreatedData>>;
 
 
+    /*
+     * =====================================================
+     * DIRECT EDIT MODE
+     * =====================================================
+     *
+     * Used by DataTable.
+     *
+     * Example:
+     *
+     * editData={row.original}
+     *
+     * onEditSubmit={(formData, row) => ...}
+     */
+
+    mode?: FormMode;
+
+    editData?: TCreatedData | null;
+
+    onEditSubmit?: (
+        formData: TFormData,
+        editData: TCreatedData
+    ) => Promise<SubmitResult<TCreatedData>>;
+
+    onEditSuccess?: (
+        data: TCreatedData
+    ) => void;
+
+
+    /*
+     * =====================================================
+     * RENDERING
+     * =====================================================
+     *
+     * card:
+     *      Existing Form UI.
+     *
+     * plain:
+     *      Only form fields + buttons.
+     *
+     * Useful when putting the Form inside
+     * another Dialog.
+     */
+
+    variant?: FormVariant;
+
+
+    /*
+     * =====================================================
+     * OTHER
+     * =====================================================
+     */
+
     children?: React.ReactNode;
 
     submitText?: string;
+
     loadingText?: string;
+
     title?: string;
 
     successTitle?: string;
+
     successDescription?: string;
 
     updateSuccessTitle?: string;
+
     updateSuccessDescription?: string;
 };
 
@@ -215,10 +270,20 @@ export default function Form<
     getUpdateData,
     onUpdate,
 
+    mode = "create",
+
+    editData,
+    onEditSubmit,
+    onEditSuccess,
+
+    variant = "card",
+
     children,
 
     submitText = "Submit",
+
     loadingText = "Submitting...",
+
     title = "Form",
 
     successTitle = "Successfully Added",
@@ -281,6 +346,21 @@ export default function Form<
 
     /*
      * =====================================================
+     * EDIT MODE INITIALIZATION
+     * =====================================================
+     *
+     * This is ONLY used for:
+     *
+     * mode="edit"
+     *
+     * It does NOT affect the existing create Form.
+     */
+
+
+
+
+    /*
+     * =====================================================
      * CLEAR FORM
      * =====================================================
      */
@@ -308,6 +388,126 @@ export default function Form<
 
     /*
      * =====================================================
+     * EDIT MODE SUBMIT
+     * =====================================================
+     */
+
+    async function handleEditSubmit(
+        data: TFormData
+    ) {
+
+        if (
+            !editData ||
+            !onEditSubmit
+        ) {
+
+            toast.add({
+                type: "error",
+                title: "Edit Error",
+                description:
+                    "Edit configuration is incomplete.",
+            });
+
+            return;
+        }
+
+
+        try {
+
+            setIsSubmitting(true);
+
+
+            const result =
+                await onEditSubmit(
+                    data,
+                    editData
+                );
+
+
+            /*
+             * UPDATE FAILED
+             */
+
+            if (!result.success) {
+
+                toast.add({
+                    type: "error",
+                    title: "Error",
+                    description:
+                        result.message ??
+                        "Failed to update.",
+                });
+
+                return;
+            }
+
+
+            /*
+             * UPDATE SUCCEEDED
+             * BUT NO DATA RETURNED
+             */
+
+            if (!result.data) {
+
+                toast.add({
+                    type: "error",
+                    title: "Error",
+                    description:
+                        "Update succeeded but no data was returned.",
+                });
+
+                return;
+            }
+
+
+            /*
+             * SUCCESS
+             */
+
+            toast.add({
+                type: "success",
+                title: "Success",
+                description:
+                    "Item updated successfully.",
+            });
+
+
+            /*
+             * Notify parent.
+             *
+             * DataTable can use this to refresh
+             * its data or close the Dialog.
+             */
+
+            onEditSuccess?.(
+                result.data
+            );
+
+        } catch (error) {
+
+            console.error(
+                "Edit form submission error:",
+                error
+            );
+
+            toast.add({
+                type: "error",
+                title: "Error",
+                description:
+                    error instanceof Error
+                        ? error.message
+                        : "An unexpected error occurred.",
+            });
+
+        } finally {
+
+            setIsSubmitting(false);
+        }
+    }
+
+
+    /*
+     * =====================================================
      * SUBMIT
      * =====================================================
      */
@@ -315,6 +515,29 @@ export default function Form<
     async function handleSubmit(
         data: TFormData
     ) {
+
+        /*
+         * =================================================
+         * DIRECT EDIT MODE
+         * =================================================
+         *
+         * This is completely separate from
+         * your original create/update flow.
+         */
+
+        if (mode === "edit") {
+
+            await handleEditSubmit(data);
+
+            return;
+        }
+
+
+        /*
+         * =================================================
+         * ORIGINAL CREATE / UPDATE FLOW
+         * =================================================
+         */
 
         try {
 
@@ -329,15 +552,24 @@ export default function Form<
 
             if (isEditing && insertedData) {
 
+                if (
+                    !getUpdateData ||
+                    !onUpdate
+                ) {
+
+                    toast.add({
+                        type: "error",
+                        title: "Update Error",
+                        description:
+                            "Update configuration is incomplete.",
+                    });
+
+                    return;
+                }
+
+
                 /*
                  * Build the COMPLETE update object.
-                 *
-                 * Example:
-                 *
-                 * {
-                 *     cardCode: "CARD001",
-                 *     item: data
-                 * }
                  */
 
                 const updateData =
@@ -376,10 +608,6 @@ export default function Form<
 
                 /*
                  * Call update action.
-                 *
-                 * ONE argument.
-                 *
-                 * NO spread.
                  */
 
                 const result =
@@ -481,6 +709,18 @@ export default function Form<
              * CREATE MODE
              * =================================================
              */
+
+            if (!onSubmit) {
+
+                toast.add({
+                    type: "error",
+                    title: "Submit Error",
+                    description:
+                        "Submit configuration is incomplete.",
+                });
+
+                return;
+            }
 
 
             const result =
@@ -589,8 +829,10 @@ export default function Form<
 
     /*
      * =====================================================
-     * EDIT
+     * EDIT INSERTED DATA
      * =====================================================
+     *
+     * This is your ORIGINAL edit functionality.
      */
 
     function editInsertedData() {
@@ -647,11 +889,29 @@ export default function Form<
      * =====================================================
      * UNDO / DELETE
      * =====================================================
+     *
+     * ORIGINAL FUNCTIONALITY.
      */
 
     async function undoInsertedData() {
 
         if (!insertedData) {
+            return;
+        }
+
+
+        if (
+            !getDeleteData ||
+            !onDelete
+        ) {
+
+            toast.add({
+                type: "error",
+                title: "Delete Error",
+                description:
+                    "Delete configuration is incomplete.",
+            });
+
             return;
         }
 
@@ -737,12 +997,14 @@ export default function Form<
             message?: string;
         }
     ) {
+
         if (!error) {
             return null;
         }
 
         return (
             <Popover>
+
                 <PopoverTrigger
                     render={
                         <Button
@@ -757,22 +1019,255 @@ export default function Form<
                 />
 
                 <PopoverContent>
+
                     <p className="text-sm text-destructive">
-                        {error.message ?? "Invalid value"}
+
+                        {error.message ??
+                            "Invalid value"}
+
                     </p>
+
                 </PopoverContent>
+
             </Popover>
         );
     }
 
+
     /*
      * =====================================================
-     * RENDER
+     * FORM FIELDS
      * =====================================================
+     *
+     * Shared between:
+     *
+     * - create Form
+     * - normal update
+     * - DataTable edit Dialog
+     */
+
+    const formContent = (
+        <form
+            id="ready-form"
+            onSubmit={
+                form.handleSubmit(
+                    handleSubmit
+                )
+            }
+        >
+
+            <FieldGroup>
+
+                {fields.map(
+                    (fieldConfig) => (
+
+                        <Controller
+                            key={
+                                fieldConfig.name
+                            }
+
+                            name={
+                                fieldConfig.name
+                            }
+
+                            control={
+                                form.control
+                            }
+
+                            render={({
+                                field,
+                                fieldState,
+                            }) => (
+
+                                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+
+                                    <FieldLabel className="w-full shrink-0 sm:w-40">
+
+                                        {
+                                            fieldConfig.label
+                                        }
+
+                                    </FieldLabel>
+
+
+                                    <div className="flex w-full gap-2">
+
+                                        {fieldConfig.type ===
+                                            "number" ? (
+
+                                            <Input
+                                                type="number"
+
+                                                placeholder={
+                                                    fieldConfig.placeholder ??
+                                                    fieldConfig.label
+                                                }
+
+                                                value={
+                                                    field.value ??
+                                                    ""
+                                                }
+
+                                                onChange={(
+                                                    e
+                                                ) => {
+
+                                                    const value =
+                                                        e.target.value;
+
+                                                    field.onChange(
+                                                        value === ""
+                                                            ? undefined
+                                                            : Number(
+                                                                value
+                                                            )
+                                                    );
+                                                }}
+
+                                                onBlur={
+                                                    field.onBlur
+                                                }
+
+                                                name={
+                                                    field.name
+                                                }
+
+                                                ref={
+                                                    field.ref
+                                                }
+
+                                                aria-invalid={
+                                                    fieldState.invalid
+                                                }
+                                            />
+
+                                        ) : (
+
+                                            <Input
+                                                type="text"
+
+                                                value={
+                                                    field.value ??
+                                                    ""
+                                                }
+
+                                                onChange={
+                                                    field.onChange
+                                                }
+
+                                                onBlur={
+                                                    field.onBlur
+                                                }
+
+                                                name={
+                                                    field.name
+                                                }
+
+                                                ref={
+                                                    field.ref
+                                                }
+
+                                                placeholder={
+                                                    fieldConfig.placeholder ??
+                                                    fieldConfig.label
+                                                }
+
+                                                aria-invalid={
+                                                    fieldState.invalid
+                                                }
+                                            />
+
+                                        )}
+
+
+                                        {renderError(
+                                            fieldState.error
+                                        )}
+
+                                    </div>
+
+                                </div>
+                            )}
+                        />
+                    )
+                )}
+
+                {children}
+
+            </FieldGroup>
+
+        </form>
+    );
+
+
+    /*
+     * =====================================================
+     * PLAIN VARIANT
+     * =====================================================
+     *
+     * Used when Form is placed inside
+     * another Dialog.
+     */
+
+    if (variant === "plain") {
+
+        return (
+            <div className="w-full">
+
+                {formContent}
+
+                <div className="flex justify-end gap-2 pt-4">
+
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={
+                            clearForm
+                        }
+                        disabled={
+                            isSubmitting
+                        }
+                    >
+                        Reset
+                    </Button>
+
+
+                    <Button
+                        type="submit"
+                        form="ready-form"
+                        disabled={
+                            isSubmitting
+                        }
+                    >
+
+                        {isSubmitting
+                            ? loadingText
+                            : mode === "edit"
+                                ? "Update"
+                                : isEditing
+                                    ? "Update"
+                                    : submitText}
+
+                    </Button>
+
+                </div>
+
+            </div>
+        );
+    }
+
+
+    /*
+     * =====================================================
+     * ORIGINAL CARD VARIANT
+     * =====================================================
+     *
+     * Your existing Form UI.
      */
 
     return (
         <>
+
             <Card className="w-full">
 
                 <CardHeader>
@@ -786,153 +1281,7 @@ export default function Form<
 
                 <CardContent>
 
-                    <form
-                        id="ready-form"
-                        onSubmit={
-                            form.handleSubmit(
-                                handleSubmit
-                            )
-                        }
-                    >
-
-                        <FieldGroup>
-
-                            {fields.map(
-                                (fieldConfig) => (
-
-                                    <Controller
-                                        key={
-                                            fieldConfig.name
-                                        }
-
-                                        name={
-                                            fieldConfig.name
-                                        }
-
-                                        control={
-                                            form.control
-                                        }
-
-                                        render={({
-                                            field,
-                                            fieldState,
-                                        }) => (
-
-                                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-
-                                                <FieldLabel className="w-full shrink-0 sm:w-40">
-
-                                                    {
-                                                        fieldConfig.label
-                                                    }
-
-                                                </FieldLabel>
-
-
-                                                <div className="flex w-full gap-2">
-
-                                                    {fieldConfig.type ===
-                                                        "number" ? (
-
-                                                        <Input
-                                                            type="number"
-
-                                                            placeholder={
-                                                                fieldConfig.placeholder ??
-                                                                fieldConfig.label
-                                                            }
-
-                                                            value={
-                                                                field.value ??
-                                                                ""
-                                                            }
-
-                                                            onChange={(
-                                                                e
-                                                            ) => {
-
-                                                                const value =
-                                                                    e.target.value;
-
-                                                                field.onChange(
-                                                                    value === ""
-                                                                        ? undefined
-                                                                        : Number(
-                                                                            value
-                                                                        )
-                                                                );
-                                                            }}
-
-                                                            onBlur={
-                                                                field.onBlur
-                                                            }
-
-                                                            name={
-                                                                field.name
-                                                            }
-
-                                                            ref={
-                                                                field.ref
-                                                            }
-
-                                                            aria-invalid={
-                                                                fieldState.invalid
-                                                            }
-                                                        />
-
-                                                    ) : (
-
-                                                        <Input
-                                                            type="text"
-
-                                                            value={
-                                                                field.value ??
-                                                                ""
-                                                            }
-
-                                                            onChange={
-                                                                field.onChange
-                                                            }
-
-                                                            onBlur={
-                                                                field.onBlur
-                                                            }
-
-                                                            name={
-                                                                field.name
-                                                            }
-
-                                                            ref={
-                                                                field.ref
-                                                            }
-
-                                                            placeholder={
-                                                                fieldConfig.placeholder ??
-                                                                fieldConfig.label
-                                                            }
-
-                                                            aria-invalid={
-                                                                fieldState.invalid
-                                                            }
-                                                        />
-                                                    )}
-
-
-                                                    {renderError(fieldState.error)}
-
-                                                </div>
-
-                                            </div>
-                                        )}
-                                    />
-                                )
-                            )}
-
-                            {children}
-
-                        </FieldGroup>
-
-                    </form>
+                    {formContent}
 
                 </CardContent>
 
@@ -975,7 +1324,7 @@ export default function Form<
 
 
             {/* =================================================
-                SUCCESS DIALOG
+                ORIGINAL SUCCESS DIALOG
             ================================================= */}
 
             <Dialog
@@ -1075,7 +1424,7 @@ export default function Form<
                 </DialogContent>
 
             </Dialog>
+
         </>
     );
 }
-

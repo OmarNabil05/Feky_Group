@@ -1,40 +1,25 @@
 
+import { getItemsAction } from "@/actions/items.action";
+import ItemsTable from "./item-table";
 
-import DataTable from "@/components/ui/data-table"
-import { getItemsAction } from "@/actions/items.action"
-import { toast } from "@/components/ui/toast";
-import { ColumnsKeys } from "@/types/items.types";
+export default async function ViewItemPage() {
 
-
-
-
-
-async function getData() {
-    // Fetch data from your API here.
     const result = await getItemsAction(0, 22);
 
     if (!result.success) {
-        toast.add({
-            type: "error",
-            title: "failed to fetch",
-            description: result.message
-
-        })
-        return [];
+        return (
+            <div className="container mx-auto py-10">
+                <p className="text-destructive">
+                    {result.message ?? "Failed to load items."}
+                </p>
+            </div>
+        );
     }
-
-    // ...
-    return result.data;
-
-
-}
-
-export default async function DemoPage() {
-    const data = await getData()
 
     return (
         <div className="container mx-auto py-10">
-            <DataTable ColumnHeaders={ColumnsKeys} data={data} actionsOn={true} />
+            <ItemsTable data={result.data ?? []} />
         </div>
-    )
+    );
 }
+
