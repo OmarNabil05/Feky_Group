@@ -1,56 +1,40 @@
-import {
-    getItemsAction,
-    searchItemsAction,
-    GetItemsNumbers,
-    GetSearchItemsNumbers,
-    deleteItemAction,
-} from "@/actions/items.action";
 
-import { DataTable } from "@/components/ui/data-table";
 
-const PAGE_SIZE = 10;
+import DataTable from "@/components/ui/data-table"
+import { getItemsAction } from "@/actions/items.action"
+import { toast } from "@/components/ui/toast";
+import { ColumnsKeys } from "@/types/items.types";
 
-export default async function ItemsPage() {
-    const [itemsResult, countResult] =
-        await Promise.all([
-            getItemsAction(0, PAGE_SIZE),
-            GetItemsNumbers(),
-        ]);
 
-    if (!itemsResult.success) {
-        return (
-            <div className="container mx-auto">
-                <p className="text-destructive">
-                    {itemsResult.errors?.[0]?.message ??
-                        "Failed to load items"}
-                </p>
-            </div>
-        );
+
+
+
+async function getData() {
+    // Fetch data from your API here.
+    const result = await getItemsAction(0, 22);
+
+    if (!result.success) {
+        toast.add({
+            type: "error",
+            title: "failed to fetch",
+            description: result.message
+
+        })
+        return [];
     }
 
-    if (!countResult.success) {
-        return (
-            <div className="container mx-auto">
-                <p className="text-destructive">
-                    {countResult.errors?.[0]?.message ??
-                        "Failed to load item count"}
-                </p>
-            </div>
-        );
-    }
+    // ...
+    return result.data;
+
+
+}
+
+export default async function DemoPage() {
+    const data = await getData()
 
     return (
-        <div className="container mx-auto">
-            <DataTable
-                initialData={itemsResult.data}
-                initialTotal={countResult.data}
-                pageSize={PAGE_SIZE}
-                fetchData={getItemsAction}
-                searchData={searchItemsAction}
-                getTotal={GetItemsNumbers}
-                getSearchTotal={GetSearchItemsNumbers}
-                onDelete={deleteItemAction}
-            />
+        <div className="container mx-auto py-10">
+            <DataTable ColumnHeaders={ColumnsKeys} data={data} actionsOn={true} />
         </div>
-    );
+    )
 }
