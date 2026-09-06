@@ -80,6 +80,8 @@ import {
 } from "@/components/ui/dialog"
 
 import { toast } from "@/components/ui/toast"
+import { Separator } from '@/components/ui/separator';
+import { Card } from "./card"
 
 
 // =========================================================
@@ -1659,13 +1661,13 @@ export default function DataTable<
 
     return (
 
-        <>
+        <Card className="sm:w-150 lg:w-full overflow-hidden mx-auto p-5 ">
 
             {/* =================================================
                 TOOLBAR
             ================================================= */}
 
-            <div className="flex flex-wrap items-center justify-between gap-2 py-4">
+            <div className="flex flex-col lg:flex-row lg:flex-wrap items-center justify-between gap-3   py-4 w-full ">
 
                 {featureConfig.search ? (
 
@@ -1677,7 +1679,7 @@ export default function DataTable<
                                 event.target.value
                             )
                         }
-                        className="max-w-sm"
+                        className="sm:w-full lg:max-w-sm"
                     />
 
                 ) : (
@@ -1687,7 +1689,7 @@ export default function DataTable<
                 )}
 
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center  gap-1">
 
                     {/* =========================================
                         CREATE
@@ -2019,7 +2021,7 @@ export default function DataTable<
                     </TableBody>
 
                 </Table>
-
+                <Separator orientation="horizontal" className="ml-1  " />
 
                 {/* =================================================
                     PAGINATION
@@ -2027,7 +2029,8 @@ export default function DataTable<
 
                 {featureConfig.pagination && (
 
-                    <div className="flex items-center justify-between px-2 py-4">
+                    <div className="flex flex-col-reverse gap-1 lg:flex-row  items-center  justify-between px-2 py-2 ">
+
 
                         <div className="flex-1 text-sm text-muted-foreground">
 
@@ -2046,9 +2049,9 @@ export default function DataTable<
                         </div>
 
 
-                        <div className="flex items-center space-x-6 lg:space-x-8">
+                        <div className="flex flex-row:items-center justify-between   gap-2">
 
-                            <div className="flex items-center space-x-2">
+                            <div className="flex justify-center  items-center space-x-1">
 
                                 <p className="text-sm font-medium">
                                     Rows per page
@@ -2087,7 +2090,7 @@ export default function DataTable<
                                         side="top"
                                     >
 
-                                        {[
+                                        {[5,
                                             10,
                                             20,
                                             25,
@@ -2350,7 +2353,7 @@ export default function DataTable<
 
             </Dialog>
 
-        </>
+        </Card>
 
     )
 }

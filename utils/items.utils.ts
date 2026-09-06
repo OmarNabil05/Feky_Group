@@ -1,7 +1,8 @@
-import { ItemsSchema } from "@/types/items.types";
-import { AppError } from "@/utils/AppError";
 
-export function LimitsValidation(item: ItemsSchema) {
+import { AppError } from "@/utils/AppError";
+import { ItemFormData } from "@/validations/items.validation";
+
+export function LimitsValidation(item: ItemFormData) {
     const errors: string[] = [];
 
     if (item.MaxLimit !== undefined && item.MaxLimit < 1) {

@@ -17,6 +17,7 @@ import {
     SidebarMenuSubButton,
     SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
+import Link from "next/link"
 
 export function NavMain({
     items,
@@ -39,7 +40,7 @@ export function NavMain({
                 {items.map((item) => (
                     <Collapsible
                         key={item.title}
-                        
+
                         defaultOpen={item.isActive}
                         className="group/collapsible"
                         render={<SidebarMenuItem>
@@ -54,9 +55,9 @@ export function NavMain({
                                 <SidebarMenuSub>
                                     {item.items?.map((subItem) => (
                                         <SidebarMenuSubItem key={subItem.title}>
-                                            <SidebarMenuSubButton render={<a href={subItem.url}>
-                                                <span>{subItem.title}</span>
-                                            </a>}>
+                                            <SidebarMenuSubButton render={<Link href={`${subItem.url}`}>
+                                                {subItem.title}
+                                            </Link>}>
 
                                             </SidebarMenuSubButton>
                                         </SidebarMenuSubItem>

@@ -1,4 +1,5 @@
 import { AppSidebar } from '@/components/ui/app-sidebar';
+import { ModeToggle } from '@/components/ui/Mode-Toggle';
 
 import { Separator } from '@/components/ui/separator';
 
@@ -17,16 +18,17 @@ export default function DashboardLayout({ children }: children) {
                 <main className=' w-full'>
                     <header className="flex  shrink-0 items-center gap-2 border-b   ">
                         <div className="flex items-center justify-between w-full gap-2 px-2 h-10">
-                            <div className="flex ">
+                            <div className="flex  ">
                                 <SidebarTrigger />
+
                                 <Separator orientation="vertical" className="ml-1  " />
                             </div>
-                           
+                            <ModeToggle />
                         </div>
                     </header>
-                    <div className="lg:p-4 md:p-3 p-2">{children}</div>
+                    <div className=" ">{children}</div>
                 </main>
-                <Toaster/>
+                <Toaster />
             </SidebarProvider>
 
         </>

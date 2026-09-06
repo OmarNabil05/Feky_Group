@@ -35,9 +35,11 @@ export default function AddItemPage() {
 
             /*
              * DELETE
+             *
+             * CardGuide is the actual database ID.
              */
             getDeleteData={(item) =>
-                item.CardCode
+                item.CardGuide
             }
 
             onDelete={deleteItemAction}
@@ -49,20 +51,18 @@ export default function AddItemPage() {
              * Form will create:
              *
              * {
-             *     cardCode: item.CardCode,
+             *     cardGuide: item.CardGuide,
              *     item: formData
              * }
              */
             getUpdateData={(item, formData) => ({
-                cardCode: item.CardCode,
+                cardGuide: item.CardGuide,
                 item: formData,
             })}
 
 
             /*
              * UPDATE
-             *
-             * Receives ONE object.
              */
             onUpdate={updateItemAction}
         />

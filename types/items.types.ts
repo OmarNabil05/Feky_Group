@@ -1,4 +1,5 @@
 export interface ItemsSchema {
+    CardGuide: string;
     ProductName: string;
     MinLimit?: number;
     MaxLimit?: number;

@@ -1,8 +1,8 @@
 import getConnection from "@/lib/db";
-import { ItemsSchema } from "@/types/items.types";
+import { ItemFormData } from "@/validations/items.validation";
 import sql from "mssql";
 
-export async function insertItem(item: ItemsSchema) {
+export async function insertItem(item: ItemFormData) {
     const pool = await getConnection();
 
     const result = await pool
@@ -14,7 +14,7 @@ export async function insertItem(item: ItemsSchema) {
         .input("Specification", sql.NVarChar, item.Specification)
         .input("Width", sql.Float, item.Width)
         .input("Hieght", sql.Float, item.Hieght)
-        .input("CardImage", sql.VarBinary, item.CardImage ?? null)
+
         .query(`
             DECLARE @NewCardCode NVARCHAR(50);
 
@@ -37,7 +37,7 @@ export async function insertItem(item: ItemsSchema) {
                 Specification,
                 Width,
                 Hieght,
-                CardImage,
+              
                 GroupGuid
             )
             VALUES (
@@ -49,11 +49,21 @@ export async function insertItem(item: ItemsSchema) {
                 @Specification,
                 @Width,
                 @Hieght,
-                @CardImage,
+        
                 '679FBA47-E94A-4766-BF8A-6F6605547FF0'
             );
 
-            SELECT CardCode , ProductName , Source , Specification,MinLimit, MaxLimit, Width ,Hieght
+            SELECT
+                CardGuide,
+                CardCode,
+                ProductName,
+                MinLimit,
+                MaxLimit,
+                Source,
+                Specification,
+                Width,
+                Hieght
+               
             FROM dbo.TBL007
             WHERE CardCode = @NewCardCode;
         `);
@@ -62,7 +72,10 @@ export async function insertItem(item: ItemsSchema) {
 }
 
 
-export async function getItems(offset: number, limit: number) {
+export async function getItems(
+    offset: number,
+    limit: number
+) {
     const pool = await getConnection();
 
     const result = await pool
@@ -71,6 +84,7 @@ export async function getItems(offset: number, limit: number) {
         .input("Limit", sql.Int, limit)
         .query(`
             SELECT
+                CardGuide,
                 CardCode,
                 ProductName,
                 MinLimit,
@@ -80,8 +94,8 @@ export async function getItems(offset: number, limit: number) {
                 Width,
                 Hieght,
                 CardImage
-            FROM TBL007
-            ORDER BY ID ASC
+            FROM dbo.TBL007
+            ORDER BY TRY_CONVERT(INT, CardCode) DESC
             OFFSET @Offset ROWS
             FETCH NEXT @Limit ROWS ONLY;
         `);
@@ -90,7 +104,9 @@ export async function getItems(offset: number, limit: number) {
 }
 
 
-export async function getItemByCardCode(cardCode: string) {
+export async function getItemByCardCode(
+    cardCode: string
+) {
     const pool = await getConnection();
 
     const result = await pool
@@ -98,6 +114,7 @@ export async function getItemByCardCode(cardCode: string) {
         .input("CardCode", sql.NVarChar, cardCode)
         .query(`
             SELECT
+                CardGuide,
                 CardCode,
                 ProductName,
                 MinLimit,
@@ -107,7 +124,7 @@ export async function getItemByCardCode(cardCode: string) {
                 Width,
                 Hieght,
                 CardImage
-            FROM TBL007
+            FROM dbo.TBL007
             WHERE CardCode = @CardCode;
         `);
 
@@ -129,6 +146,7 @@ export async function searchItems(
         .input("Offset", sql.Int, offset)
         .query(`
             SELECT
+                CardGuide,
                 CardCode,
                 ProductName,
                 MinLimit,
@@ -136,8 +154,9 @@ export async function searchItems(
                 Source,
                 Specification,
                 Width,
-                Hieght
-            FROM TBL007
+                Hieght,
+                CardImage
+            FROM dbo.TBL007
             WHERE ProductName LIKE @Search
                OR CardCode LIKE @Search
             ORDER BY ProductName
@@ -150,14 +169,18 @@ export async function searchItems(
 
 
 export async function updateItem(
-    cardCode: string,
-    item: ItemsSchema
+    cardGuide: string,
+    item: ItemFormData
 ) {
     const pool = await getConnection();
 
     const result = await pool
         .request()
-        .input("CardCode", sql.NVarChar, cardCode)
+        .input(
+            "CardGuide",
+            sql.UniqueIdentifier,
+            cardGuide
+        )
         .input("ProductName", sql.NVarChar, item.ProductName)
         .input("MinLimit", sql.Float, item.MinLimit)
         .input("MaxLimit", sql.Float, item.MaxLimit)
@@ -165,9 +188,9 @@ export async function updateItem(
         .input("Specification", sql.NVarChar, item.Specification)
         .input("Width", sql.Float, item.Width)
         .input("Hieght", sql.Float, item.Hieght)
-        .input("CardImage", sql.VarBinary, item.CardImage ?? null)
+
         .query(`
-            UPDATE TBL007
+            UPDATE dbo.TBL007
             SET
                 ProductName = @ProductName,
                 MinLimit = @MinLimit,
@@ -175,38 +198,44 @@ export async function updateItem(
                 Source = @Source,
                 Specification = @Specification,
                 Width = @Width,
-                Hieght = @Hieght,
-                CardImage = @CardImage
-            WHERE CardCode = @CardCode;
+                Hieght = @Hieght
+              
+            WHERE CardGuide = @CardGuide;
+
+            SELECT
+                CardGuide,
+                CardCode,
+                ProductName,
+                MinLimit,
+                MaxLimit,
+                Source,
+                Specification,
+                Width,
+                Hieght
+               
+            FROM dbo.TBL007
+            WHERE CardGuide = @CardGuide;
         `);
 
-    if (result.rowsAffected[0] === 0) {
-        return null;
-    }
-
-    return {
-        CardCode: cardCode,
-        ProductName: item.ProductName,
-        MinLimit: item.MinLimit,
-        MaxLimit: item.MaxLimit,
-        Source: item.Source,
-        Specification: item.Specification,
-        Width: item.Width,
-        Hieght: item.Hieght,
-        CardImage: item.CardImage ?? null,
-    };
+    return result.recordset[0] ?? null;
 }
 
 
-export async function deleteItem(cardCode: string) {
+export async function deleteItem(
+    cardGuide: string
+) {
     const pool = await getConnection();
 
     const result = await pool
         .request()
-        .input("CardCode", sql.NVarChar, cardCode)
+        .input(
+            "CardGuide",
+            sql.UniqueIdentifier,
+            cardGuide
+        )
         .query(`
-            DELETE FROM TBL007
-            WHERE CardCode = @CardCode;
+            DELETE FROM dbo.TBL007
+            WHERE CardGuide = @CardGuide;
         `);
 
     if (result.rowsAffected[0] === 0) {
@@ -214,50 +243,106 @@ export async function deleteItem(cardCode: string) {
     }
 
     return {
-        CardCode: cardCode,
+        CardGuide: cardGuide,
     };
 }
 
 
-export async function itemNameExists(productName: string) {
+export async function itemNameExists(
+    productName: string
+) {
     const pool = await getConnection();
 
     const result = await pool
         .request()
-        .input("ProductName", sql.NVarChar, productName)
+        .input(
+            "ProductName",
+            sql.NVarChar,
+            productName
+        )
         .query(`
             SELECT TOP 1 1 AS ExistsFlag
-            FROM TBL007
+            FROM dbo.TBL007
             WHERE ProductName = @ProductName;
         `);
 
     return result.recordset.length > 0;
 }
 
+
 export async function getItemsNumber() {
     const pool = await getConnection();
 
     const result = await pool.request().query(`
-        SELECT COUNT(ProductName) AS Total
-        FROM TBL007;
+        SELECT COUNT(*) AS Total
+        FROM dbo.TBL007;
     `);
 
     return result.recordset[0].Total;
 }
 
 
-export async function getSearchItemsNumber(search: string) {
+export async function getSearchItemsNumber(
+    search: string
+) {
     const pool = await getConnection();
 
     const result = await pool
         .request()
-        .input("Search", sql.NVarChar, `${search.trim()}%`)
+        .input(
+            "Search",
+            sql.NVarChar,
+            `${search.trim()}%`
+        )
         .query(`
             SELECT COUNT(*) AS Total
-            FROM TBL007
+            FROM dbo.TBL007
             WHERE ProductName LIKE @Search
                OR CardCode LIKE @Search;
         `);
 
     return result.recordset[0].Total;
+}
+
+
+export async function getItemChanges(
+    lastVersion: number
+) {
+    const pool = await getConnection();
+
+    const result = await pool
+        .request()
+        .input(
+            "LastVersion",
+            sql.BigInt,
+            lastVersion
+        )
+        .query(`
+            SELECT
+                CT.SYS_CHANGE_VERSION AS ChangeVersion,
+                CT.SYS_CHANGE_OPERATION AS ChangeOperation,
+                CT.CardGuide,
+
+                T.CardCode,
+                T.ProductName,
+                T.MinLimit,
+                T.MaxLimit,
+                T.Source,
+                T.Specification,
+                T.Width,
+                T.Hieght,
+                T.CardImage
+
+            FROM CHANGETABLE(
+                CHANGES dbo.TBL007,
+                @LastVersion
+            ) AS CT
+
+            LEFT JOIN dbo.TBL007 AS T
+                ON T.CardGuide = CT.CardGuide
+
+            ORDER BY CT.SYS_CHANGE_VERSION;
+        `);
+
+    return result.recordset;
 }

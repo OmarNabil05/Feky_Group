@@ -1,6 +1,9 @@
 
+
+
 import { getItemsAction } from "@/actions/items.action";
 import ItemsTable from "./item-table";
+
 
 export default async function ViewItemPage() {
 
@@ -15,6 +18,8 @@ export default async function ViewItemPage() {
             </div>
         );
     }
+
+
 
     return (
         <div className="container mx-auto py-10">
