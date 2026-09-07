@@ -26,7 +26,7 @@ export default function DashboardLayout({ children }: children) {
                             <ModeToggle />
                         </div>
                     </header>
-                    <div className=" ">{children}</div>
+                    <div className="  p-2 ">{children}</div>
                 </main>
                 <Toaster />
             </SidebarProvider>
