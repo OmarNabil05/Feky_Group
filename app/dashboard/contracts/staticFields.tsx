@@ -23,7 +23,7 @@ export default function StaticFields() {
                 className=''
             />
 
-            <Textarea placeholder="Type your message here." onChange={(e) => { setNotes(e.target.value) }} />
+            <Textarea maxLength={20} placeholder="Type your message here." onChange={(e) => { setNotes(e.target.value) }} />
         </div>
     )
 }

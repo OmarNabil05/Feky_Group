@@ -8,6 +8,7 @@ import {
 } from "@/actions/BasicFunctions/Basic-function";
 import StaticFields from "./staticFields";
 import { Card, CardHeader } from "@/components/ui/card";
+import Body from "./body";
 
 export default async function ContractsPage() {
     const agents = await GETAgents();
@@ -20,15 +21,15 @@ export default async function ContractsPage() {
         !warehouses.success
     ) {
         return (
-            <div className="container mx-auto py-10">
+            <Card className="container mx-auto py-10">
                 <p className="text-destructive">
                     Failed to load basic data.
                 </p>
-            </div>
+            </Card>
         );
     }
 
-    return (<div className="flex flex-col justify-center">
+    return (<div className="flex flex-col justify-center gap-4">
 
         <Card className=" p-2">
 
@@ -38,6 +39,10 @@ export default async function ContractsPage() {
                 WareHouses={warehouses.data ?? []}
             />
             <StaticFields />
+        </Card>
+
+        <Card>
+            <Body/>
         </Card>
     </div>
     );
