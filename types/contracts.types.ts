@@ -10,13 +10,14 @@ export type InsertContractData = {
     Currency: string;
     StoreID: string;
     CardDate: Date;
-    ArcheiveName: string; // NEW
+    ArcheiveName: string;
     Notes: string;
-
+    Total: number;
     Products: InsertContractProduct[];
 };
 
 export type ContractProduct = {
+    ID: number;
     CardGuide: string;
     ItemGuide: string;
     Quantity: number;
@@ -39,8 +40,11 @@ export type Contract = {
     WarehouseName: string;
 
     CardDate: Date;
-    ArcheiveName: string; // NEW
+    ArcheiveName: string;
     Notes: string;
+
+    Status: number;
+    Total: number;
 
     MainGuide: string;
 
@@ -49,12 +53,16 @@ export type Contract = {
 };
 
 export type ContractListItem = {
-    CardGuide: string;       // still needed internally for routing
-    ArcheiveName: string;    // what we DISPLAY
+    CardGuide: string;
+
+    ArcheiveName: string;
     AgentName: string;
     WarehouseName: string;
     CurrencyName: string;
     CardDate: Date;
+
+    Status: number;
+    Total: number;
 };
 
 export const ColumnsKeys: {
@@ -80,5 +88,13 @@ export const ColumnsKeys: {
         {
             Header: "Date",
             Accessor: "CardDate",
+        },
+        {
+            Header: "Total",
+            Accessor: "Total",
+        },
+        {
+            Header: "Finished",
+            Accessor: "Status",
         },
     ];

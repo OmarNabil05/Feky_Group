@@ -1,10 +1,13 @@
+
 import {
     insertContract,
     getAllContracts,
     getContractById,
     updateContract,
     deleteContract,
-    getContractChanges
+    getContractChanges,
+    getContractSchedule,
+    deliverContractProduct,
 } from "@/repository/contracts.repository";
 
 import type {
@@ -13,20 +16,20 @@ import type {
 
 
 /* =========================
-   CREATE
+   CREATE CONTRACT
 ========================= */
 
 export async function createContract(
     data: InsertContractData
 ) {
-    // Business rules can go here later.
+    // Business rules can be added here later.
 
     return await insertContract(data);
 }
 
 
 /* =========================
-   GET ALL
+   GET ALL CONTRACTS
 ========================= */
 
 export async function getContracts() {
@@ -36,42 +39,49 @@ export async function getContracts() {
 
 
 /* =========================
-   GET BY ID
+   GET CONTRACT BY ID
 ========================= */
 
 export async function getContract(
     cardGuide: string
 ) {
 
-    return await getContractById(cardGuide);
+    return await getContractById(
+        cardGuide
+    );
 }
 
 
 /* =========================
-   UPDATE
+   UPDATE CONTRACT
 ========================= */
 
 export async function editContract(
     cardGuide: string,
     data: InsertContractData
 ) {
+    // Business rules can be added here later.
 
-    // Business rules can go here later.
-
-    return await updateContract(cardGuide, data);
+    return await updateContract(
+        cardGuide,
+        data
+    );
 }
 
 
 /* =========================
-   DELETE
+   DELETE CONTRACT
 ========================= */
 
 export async function removeContract(
     cardGuide: string
 ) {
 
-    return await deleteContract(cardGuide);
+    return await deleteContract(
+        cardGuide
+    );
 }
+
 
 /* =========================
    CHANGE TRACKING
@@ -85,3 +95,34 @@ export async function getContractChange(
         lastVersion
     );
 }
+
+
+/* =========================
+   GET CONTRACT SCHEDULE
+========================= */
+
+export async function getSchedule(
+    cardGuide: string
+) {
+
+    return await getContractSchedule(
+        cardGuide
+    );
+}
+
+
+/* =========================
+   DELIVER CONTRACT PRODUCT
+========================= */
+
+export async function deliverProduct(
+    cardGuide: string,
+    id: number
+) {
+
+    return await deliverContractProduct(
+        cardGuide,
+        id
+    );
+}
+

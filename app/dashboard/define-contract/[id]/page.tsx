@@ -1,3 +1,4 @@
+
 import {
     GETAgents,
     GETCurrency,
@@ -13,36 +14,84 @@ type PageProps = {
     params: Promise<{
         id: string;
     }>;
+
+    searchParams: Promise<{
+        mode?: string;
+    }>;
 };
+
+function formatDateForInput(date: Date) {
+    const year = date.getFullYear();
+
+    const month = String(
+        date.getMonth() + 1
+    ).padStart(2, "0");
+
+    const day = String(
+        date.getDate()
+    ).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+}
 
 export default async function EditContractPage({
     params,
+    searchParams,
 }: PageProps) {
 
     const { id } = await params;
+
+    const { mode } = await searchParams;
+
+
+    // --------------------------------
+    // Determine form mode
+    // --------------------------------
+
+    const formMode =
+        mode === "view"
+            ? "view"
+            : "edit";
+
 
     // --------------------------------
     // Load basic data
     // --------------------------------
 
-    const agents = await GETAgents();
-    const currency = await GETCurrency();
-    const warehouses = await GETWarehouses();
+    const agents =
+        await GETAgents();
 
-    const items = await getItemsAction(0, 10000);
+    const currency =
+        await GETCurrency();
+
+    const warehouses =
+        await GETWarehouses();
+
+    const items =
+        await getItemsAction(
+            0,
+            10000
+        );
+
 
     // --------------------------------
     // Get contract
     // --------------------------------
 
-    const contract = await getContractAction(id);
+    const contract =
+        await getContractAction(id);
+
 
     // --------------------------------
     // Handle contract loading error
     // --------------------------------
 
     if (!contract.success) {
-        console.log("EDIT CONTRACT ERROR:", contract);
+
+        console.log(
+            "CONTRACT ERROR:",
+            contract
+        );
 
         return (
             <div className="p-6">
@@ -51,12 +100,17 @@ export default async function EditContractPage({
         );
     }
 
+
     // --------------------------------
     // Make sure contract data exists
     // --------------------------------
 
     if (!contract.data) {
-        console.log("EDIT CONTRACT DATA IS EMPTY:", contract);
+
+        console.log(
+            "CONTRACT DATA IS EMPTY:",
+            contract
+        );
 
         return (
             <div className="p-6">
@@ -64,6 +118,7 @@ export default async function EditContractPage({
             </div>
         );
     }
+
 
     // --------------------------------
     // Handle basic data loading errors
@@ -75,12 +130,16 @@ export default async function EditContractPage({
         !warehouses.success ||
         !items.success
     ) {
-        console.log("EDIT BASIC DATA ERROR:", {
-            agents: agents.success,
-            currency: currency.success,
-            warehouses: warehouses.success,
-            items: items.success,
-        });
+
+        console.log(
+            "BASIC DATA ERROR:",
+            {
+                agents: agents.success,
+                currency: currency.success,
+                warehouses: warehouses.success,
+                items: items.success,
+            }
+        );
 
         return (
             <div className="p-6">
@@ -89,47 +148,77 @@ export default async function EditContractPage({
         );
     }
 
+
     // --------------------------------
     // Convert backend data → form data
     // --------------------------------
 
     const initialData = {
-        contractName: contract.data.ArcheiveName,
 
-        agent: contract.data.AgentGuide01,
+        contractName:
+            contract.data.ArcheiveName,
 
-        currency: contract.data.Currency,
+        agent:
+            contract.data.AgentGuide01,
 
-        warehouse: contract.data.StoreID,
+        currency:
+            contract.data.Currency,
 
-        date: {
-            period: "day" as const,
-            operator: "is" as const,
-            startDate: contract.data.CardDate,
-        },
+        warehouse:
+            contract.data.StoreID,
 
-        notes: contract.data.Notes ?? "",
+        date:
+            formatDateForInput(
+                contract.data.CardDate
+            ),
 
-        products: contract.data.Products.map((product) => ({
-            cardGuide: product.CardGuide,
+        notes:
+            contract.data.Notes ?? "",
 
-            productName:
-                items.data?.find(
-                    (item) =>
-                        item.CardGuide === product.ItemGuide
-                )?.ProductName ?? "",
+        products:
+            contract.data.Products.map(
+                (product) => ({
 
-            date: {
-                period: "day" as const,
-                operator: "is" as const,
-                startDate: product.DeliveryDate,
-            },
+                    // TBL093.ItemGuide
+                    // is the product ID.
 
-            quantity: product.Quantity,
+                    cardGuide:
+                        product.ItemGuide,
 
-            price: product.Price,
-        })),
+                    // Get product name
+                    // from the items list.
+
+                    productName:
+                        items.data?.find(
+                            (item) =>
+                                item.CardGuide ===
+                                product.ItemGuide
+                        )?.ProductName ?? "",
+
+                    // Convert Date → YYYY-MM-DD
+
+                    date:
+                        formatDateForInput(
+                            product.DeliveryDate
+                        ),
+
+                    quantity:
+                        product.Quantity,
+
+                    price:
+                        product.Price,
+
+                    // TBL093.Delivered
+                    //
+                    // 0 = Not Delivered
+                    // 1 = Delivered
+
+                    delivered:
+                        product.Delivered,
+                })
+            ),
     };
+
 
     // --------------------------------
     // Render form
@@ -137,19 +226,43 @@ export default async function EditContractPage({
 
     return (
         <ContractForm
-            mode="edit"
 
-            Agents={agents.data ?? []}
+            mode={formMode}
 
-            Currency={currency.data ?? []}
+            Agents={
+                agents.data ?? []
+            }
 
-            WareHouses={warehouses.data ?? []}
+            Currency={
+                currency.data ?? []
+            }
 
-            items={items.data ?? []}
+            WareHouses={
+                warehouses.data ?? []
+            }
 
-            initialData={initialData}
+            items={
+                items.data ?? []
+            }
 
-            cardGuide={contract.data.CardGuide}
+            initialData={
+                initialData
+            }
+
+            cardGuide={
+                contract.data.CardGuide
+            }
+
+            // TBL085.Status
+            //
+            // 0 = In Progress
+            // 1 = Finished
+
+            status={
+                contract.data.Status
+            }
+
         />
     );
 }
+

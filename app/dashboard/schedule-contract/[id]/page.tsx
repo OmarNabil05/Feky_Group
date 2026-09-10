@@ -1,4 +1,9 @@
-import { getContractAction } from "@/actions/contracts.action";
+
+import {
+    getContractAction,
+    getContractScheduleAction,
+} from "@/actions/contracts.action";
+
 import ScheduleContractClient from "./schedule-contract-client";
 
 type PageProps = {
@@ -12,21 +17,43 @@ export default async function ScheduleContractPage({
 }: PageProps) {
     const { id } = await params;
 
-    const result = await getContractAction(id);
+    const contractResult = await getContractAction(id);
+    const scheduleResult = await getContractScheduleAction(id);
 
-    if (!result.success || !result.data) {
-        console.error("SCHEDULE CONTRACT ERROR:", result);
+    if (!contractResult.success || !contractResult.data) {
+        console.error(
+            "SCHEDULE CONTRACT HEADER ERROR:",
+            contractResult
+        );
 
         return (
             <div className="container mx-auto max-w-4xl py-10">
-                Failed to load contract.
+                <p className="text-destructive">
+                    Failed to load contract.
+                </p>
+            </div>
+        );
+    }
+
+    if (!scheduleResult.success || !scheduleResult.data) {
+        console.error(
+            "SCHEDULE CONTRACT PRODUCTS ERROR:",
+            scheduleResult
+        );
+
+        return (
+            <div className="container mx-auto max-w-4xl py-10">
+                <p className="text-destructive">
+                    Failed to load contract products.
+                </p>
             </div>
         );
     }
 
     return (
         <ScheduleContractClient
-            contract={result.data}
+            contract={contractResult.data}
+            schedule={scheduleResult.data}
         />
     );
 }

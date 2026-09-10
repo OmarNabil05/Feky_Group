@@ -1,84 +1,185 @@
+"use client";
 
-"use client"
+import { useRouter } from "next/navigation";
 
-import { useRouter } from "next/navigation"
+import DataTable, {
+    type ColumnHeaders,
+} from "@/components/ui/data-table";
 
-import DataTable from "@/components/ui/data-table"
+import { Badge } from "@/components/ui/badge";
 
-import {
-    ColumnsKeys,
-    type ContractListItem,
-} from "@/types/contracts.types"
+import type {
+    ContractListItem,
+} from "@/types/contracts.types";
 
 import {
     GetContractChanges,
     deleteContractAction,
-} from "@/actions/contracts.action"
+} from "@/actions/contracts.action";
 
-import {
-    useChangeTracking,
-} from "@/hooks/useChangeTracking"
+import { useChangeTracking } from "@/hooks/useChangeTracking";
+
+
+// =========================================================
+// CONTRACT COLUMNS
+// =========================================================
+
+const ColumnsKeys: ColumnHeaders<ContractListItem>[] = [
+
+    {
+        Header: "Contract Name",
+        Accessor: "ArcheiveName",
+    },
+
+    {
+        Header: "Agent",
+        Accessor: "AgentName",
+    },
+
+    {
+        Header: "Warehouse",
+        Accessor: "WarehouseName",
+    },
+
+    {
+        Header: "Currency",
+        Accessor: "CurrencyName",
+    },
+
+    {
+        Header: "Date",
+        Accessor: "CardDate",
+    },
+
+    {
+        Header: "Total",
+        Accessor: "Total",
+    },
+
+    {
+        Header: "Finished",
+
+        Accessor: "Status",
+
+        Cell: (value) => (
+
+            <Badge
+                variant={
+                    value === 1
+                        ? "default"
+                        : "secondary"
+                }
+            >
+                {value === 1
+                    ? "Finished"
+                    : "Not Finished"}
+            </Badge>
+
+        ),
+    },
+];
+
+
+// =========================================================
+// PROPS
+// =========================================================
 
 type ContractTableProps = {
-    data: ContractListItem[]
-}
+    data: ContractListItem[];
+};
+
+
+// =========================================================
+// CONTRACT TABLE
+// =========================================================
 
 export default function ContractTable({
     data,
 }: ContractTableProps) {
 
-    const router = useRouter()
+    const router =
+        useRouter();
+
+
+    // =====================================================
+    // CHANGE TRACKING
+    // =====================================================
 
     const {
         items: Contracts,
     } = useChangeTracking({
+
         data,
 
         getChanges:
             GetContractChanges,
 
         getId:
-            contract =>
+            (contract) =>
                 contract.CardGuide,
-    })
+    });
+
+
+    // =====================================================
+    // RENDER
+    // =====================================================
 
     return (
+
         <DataTable<ContractListItem>
-            ColumnHeaders={ColumnsKeys}
 
-            data={Contracts}
+            ColumnHeaders={
+                ColumnsKeys
+            }
 
-            getRowId={(contract) =>
-                contract.CardGuide
+            data={
+                Contracts
+            }
+
+            getRowId={
+                (contract) =>
+                    contract.CardGuide
             }
 
             features={{
+
                 search: true,
+
                 sorting: true,
+
                 pagination: true,
+
                 selection: true,
+
                 export: true,
+
                 columnVisibility: true,
 
                 actions: true,
+
                 copy: true,
 
                 view: false,
+
                 edit: false,
+
                 delete: true,
 
                 create: false,
+
             }}
 
             customActions={[
+
                 {
                     label: "View",
 
                     onClick: (contract) => {
-                        console.log(
-                            "View contract:",
-                            contract.CardGuide
-                        )
+
+                        router.push(
+                            `/dashboard/define-contract/${contract.CardGuide}?mode=view`
+                        );
+
                     },
                 },
 
@@ -86,9 +187,11 @@ export default function ContractTable({
                     label: "Edit",
 
                     onClick: (contract) => {
+
                         router.push(
                             `/dashboard/define-contract/${contract.CardGuide}`
-                        )
+                        );
+
                     },
                 },
 
@@ -96,19 +199,24 @@ export default function ContractTable({
                     label: "Schedule",
 
                     onClick: (contract) => {
+
                         router.push(
                             `/dashboard/schedule-contract/${contract.CardGuide}`
-                        )
+                        );
+
                     },
                 },
+
             ]}
 
-            onDelete={(contract) =>
-                deleteContractAction(
-                    contract.CardGuide
-                )
+            onDelete={
+                (contract) =>
+                    deleteContractAction(
+                        contract.CardGuide
+                    )
             }
-        />
-    )
-}
 
+        />
+
+    );
+}

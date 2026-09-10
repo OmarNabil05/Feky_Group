@@ -1,11 +1,8 @@
+
 "use client";
 
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/ComboboxEdited";
-import {
-    DateSelector,
-
-} from "@/components/ui/date-selector";
 import { Input } from "@/components/ui/input";
 
 import {
@@ -14,7 +11,9 @@ import {
     useFormContext,
 } from "react-hook-form";
 
-import type { ContractFormData } from "./contract-form";
+import type {
+    ContractFormData,
+} from "./contract-form";
 
 type Item = {
     CardGuide: string;
@@ -32,27 +31,36 @@ export default function Body({
     disabled = false,
 }: BodyProps) {
 
-    // Get the SAME form created in ContractForm
-    const form = useFormContext<ContractFormData>();
+    const form =
+        useFormContext<ContractFormData>();
 
-    const { fields, append, remove } = useFieldArray({
+    const {
+        fields,
+        append,
+        remove,
+    } = useFieldArray({
         control: form.control,
         name: "products",
     });
 
     return (
-        <div className="flex flex-col gap-2 p-2 items-center">
+        <div className="flex flex-col items-center gap-2 p-2">
 
-            {fields.map((field, index) => (
+            {fields.map((row, index) => (
 
                 <div
-                    key={field.id}
-                    className="flex flex-col lg:flex-row w-full item-end  gap-1"
+                    key={row.id}
+                    className="
+                        flex
+                        w-full
+                        flex-col
+                        gap-1
+                        lg:flex-row
+                    "
                 >
 
                     {/* PRODUCT */}
-
-                    <div className="lg:w-1/4">
+                    <div className="lg:w-1/5">
 
                         <label>Product</label>
 
@@ -70,12 +78,17 @@ export default function Body({
                                 >
 
                                     <Combobox
-                                        options={items.map((item) => ({
-                                            value: item.CardGuide,
-                                            label: item.ProductName,
-                                        }))}
+                                        options={items.map(
+                                            (item) => ({
+                                                value: item.CardGuide,
+                                                label: item.ProductName,
+                                            })
+                                        )}
+
                                         placeholder="Select Product"
-                                        value={field.value}
+
+                                        value={field.value ?? ""}
+
                                         onChange={(value) => {
 
                                             field.onChange(value);
@@ -90,48 +103,61 @@ export default function Body({
 
                                                 form.setValue(
                                                     `products.${index}.productName`,
-                                                    selectedItem.ProductName
+                                                    selectedItem.ProductName,
+                                                    {
+                                                        shouldDirty: true,
+                                                    }
                                                 );
 
                                             }
-
                                         }}
                                     />
 
                                 </div>
-
                             )}
                         />
+
+                        {form.formState.errors.products?.[index]?.cardGuide && (
+                            <p className="text-sm font-medium text-destructive">
+                                {
+                                    form.formState.errors
+                                        .products[index]
+                                        ?.cardGuide?.message
+                                }
+                            </p>
+                        )}
 
                     </div>
 
 
-                    {/* DATE */}
+                    {/* DELIVERY DATE */}
+                    <div className="lg:w-1/5">
 
-                    <div className="lg:w-1/4">
+                        <label>Delivery Date</label>
 
-                        <label>Date</label>
-
-                        <Controller
-                            control={form.control}
-                            name={`products.${index}.date`}
-                            render={({ field }) => (
-
-                                <DateSelector
-                                    value={field.value}
-                                    onChange={field.onChange}
-                                    className=""
-                                />
-
+                        <Input
+                            type="date"
+                            disabled={disabled}
+                            {...form.register(
+                                `products.${index}.date`
                             )}
                         />
+
+                        {form.formState.errors.products?.[index]?.date && (
+                            <p className="text-sm font-medium text-destructive">
+                                {
+                                    form.formState.errors
+                                        .products[index]
+                                        ?.date?.message
+                                }
+                            </p>
+                        )}
 
                     </div>
 
 
                     {/* QUANTITY */}
-
-                    <div className="lg:w-1/4">
+                    <div className="lg:w-1/5">
 
                         <label>Quantity</label>
 
@@ -147,15 +173,27 @@ export default function Body({
                             )}
                         />
 
+                        {form.formState.errors.products?.[index]?.quantity && (
+                            <p className="text-sm font-medium text-destructive">
+                                {
+                                    form.formState.errors
+                                        .products[index]
+                                        ?.quantity?.message
+                                }
+                            </p>
+                        )}
+
                     </div>
 
-                    <div className="lg:w-1/4">
+
+                    {/* PRICE */}
+                    <div className="lg:w-1/5">
 
                         <label>Price</label>
 
                         <Input
                             type="number"
-                            min={1}
+                            min={0}
                             disabled={disabled}
                             {...form.register(
                                 `products.${index}.price`,
@@ -165,22 +203,58 @@ export default function Body({
                             )}
                         />
 
+                        {form.formState.errors.products?.[index]?.price && (
+                            <p className="text-sm font-medium text-destructive">
+                                {
+                                    form.formState.errors
+                                        .products[index]
+                                        ?.price?.message
+                                }
+                            </p>
+                        )}
+
+                    </div>
+
+
+                    {/* DELIVERY STATUS */}
+                    <div className="flex flex-col lg:w-1/5">
+
+                        <label>Delivery Status</label>
+
+                        <div
+                            className="
+                                flex
+                               py-1.25
+                                items-center
+                                rounded-lg
+                                border
+                                px-3
+                                text-sm
+                            "
+                        >
+                            {row.delivered
+                                ? "Delivered"
+                                : "Not Delivered"}
+                        </div>
+
                     </div>
 
 
                     {/* REMOVE */}
-
                     {!disabled && (
 
-                        <div className="  flex lg:items-end justify-center lg:justify-self-auto">
+                        <div className="flex justify-center lg:items-end">
+
                             <Button
                                 type="button"
                                 variant="destructive"
-                                onClick={() => remove(index)}
-
+                                onClick={() =>
+                                    remove(index)
+                                }
                             >
                                 -
                             </Button>
+
                         </div>
 
                     )}
@@ -190,31 +264,33 @@ export default function Body({
             ))}
 
 
-            {/* ADD */}
-
+            {/* ADD ROW */}
             {!disabled && (
 
-                <div className="flex justify-center  w-full">
+                <div className="flex w-full justify-center">
 
                     <Button
                         type="button"
-                        className="dark:bg-green-900 bg-green-500 text-white"
+                        className="
+                            bg-green-500
+                            text-white
+                            dark:bg-green-900
+                        "
                         size="lg"
-                        onClick={() =>
+                        onClick={() => {
+
                             append({
                                 cardGuide: "",
                                 productName: "",
-
-                                date: {
-                                    period: "day",
-                                    operator: "is",
-                                    startDate: new Date(),
-                                },
-
+                                date: new Date()
+                                    .toISOString()
+                                    .split("T")[0],
                                 quantity: 1,
-                                price: 1
-                            })
-                        }
+                                price: 1,
+                                delivered: false,
+                            });
+
+                        }}
                     >
                         Add a Row
                     </Button>
@@ -226,3 +302,4 @@ export default function Body({
         </div>
     );
 }
+

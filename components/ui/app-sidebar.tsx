@@ -44,6 +44,22 @@ const data = {
 
       ],
     },
+    {
+      title: "Contracts",
+      url: "",
+
+      items: [
+        {
+          title: "Define Contract",
+          url: "/dashboard/define-contract",
+        },
+        {
+          title: "View Contracts",
+          url: "/dashboard/view-contract",
+        },
+
+      ],
+    },
   ],
 
 }

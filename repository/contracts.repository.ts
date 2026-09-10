@@ -10,14 +10,12 @@ import type {
     ContractListItem,
 } from "@/types/contracts.types";
 
-
 const MAIN_GUIDE =
     "C2BB2555-AB62-4AFD-B8FF-89DE47642D31";
 
-
-/* =========================
-   INSERT
-========================= */
+/* =========================================================
+   INSERT CONTRACT
+========================================================= */
 
 export async function insertContract(
     data: InsertContractData
@@ -32,9 +30,9 @@ export async function insertContract(
     try {
         const cardGuide = randomUUID();
 
-        /* =========================
+        /* =====================================================
            INSERT CONTRACT HEADER
-        ========================= */
+        ===================================================== */
 
         await new sql.Request(transaction)
             .input(
@@ -102,10 +100,9 @@ export async function insertContract(
                 );
             `);
 
-
-        /* =========================
+        /* =====================================================
            INSERT CONTRACT PRODUCTS
-        ========================= */
+        ===================================================== */
 
         for (const product of data.Products) {
             await new sql.Request(transaction)
@@ -130,6 +127,11 @@ export async function insertContract(
                     product.Price
                 )
                 .input(
+                    "Total",
+                    sql.Decimal(18, 4),
+                    data.Total
+                )
+                .input(
                     "DeliveryDate",
                     sql.DateTime,
                     product.DeliveryDate
@@ -141,6 +143,7 @@ export async function insertContract(
                         ItemGuide,
                         NumberValue,
                         NumberValue2,
+                        NumberValue3,
                         Datevalue01,
                         Delivered
                     )
@@ -150,116 +153,64 @@ export async function insertContract(
                         @ItemGuide,
                         @Quantity,
                         @Price,
+                        @Total,
                         @DeliveryDate,
                         0
                     );
                 `);
         }
 
-
         await transaction.commit();
 
         return {
             CardGuide: cardGuide,
         };
-
     } catch (error) {
         await transaction.rollback();
         throw error;
     }
 }
 
-
-/* =========================
-   GET ALL
-========================= */
+/* =========================================================
+   GET ALL CONTRACTS
+========================================================= */
 
 export async function getAllContracts(): Promise<
     ContractListItem[]
 > {
     const pool = await getConnection();
 
-    const result = await pool
-        .request()
-        .input(
-            "TypeGuide",
-            sql.UniqueIdentifier,
-            MAIN_GUIDE
-        )
-        .query(`
-            SELECT
-                C.CardGuide,
-                C.ArcheiveName,
-                A.AgentName,
-                W.WarehouseName,
-                CU.CurrencyName,
-                C.CardDate
-
-            FROM dbo.TBL085 AS C
-
-            LEFT JOIN dbo.TBL016 AS A
-                ON A.CardGuide = C.AgentGuide01
-
-            LEFT JOIN dbo.TBL008 AS W
-                ON W.CardGuide = C.Store
-
-            LEFT JOIN dbo.TBL001 AS CU
-                ON CU.CardGuide = C.Currency
-
-            WHERE
-                C.TypeGuide = @TypeGuide
-
-            ORDER BY
-                C.CardDate DESC;
-        `);
-
-    return result.recordset;
-}
-
-
-/* =========================
-   GET BY ID
-========================= */
-
-export async function getContractById(
-    cardGuide: string
-): Promise<Contract> {
-    const pool = await getConnection();
-
-    try {
-        console.log(
-            "[EDIT] Contract ID:",
-            cardGuide
-        );
-
-
-        /* =========================
-           GET CONTRACT HEADER
-        ========================= */
-
-        const headerResult = await pool
+    const result =
+        await pool
             .request()
             .input(
-                "CardGuide",
+                "TypeGuide",
                 sql.UniqueIdentifier,
-                cardGuide
+                MAIN_GUIDE
             )
             .query(`
                 SELECT
                     C.CardGuide,
+                    C.ArcheiveName,
 
-                    C.AgentGuide01,
                     A.AgentName,
 
-                    C.Currency,
-                    CU.CurrencyName,
-
-                    C.Store AS StoreID,
                     W.WarehouseName,
 
+                    CU.CurrencyName,
+
                     C.CardDate,
-                    C.ArcheiveName,
-                    C.Notes
+
+                    C.Status,
+
+                    (
+                        SELECT TOP 1
+                            B.NumberValue3
+                        FROM dbo.TBL093 AS B
+                        WHERE
+                            B.MainGuide = C.CardGuide
+                            AND B.ItemGuide IS NOT NULL
+                    ) AS Total
 
                 FROM dbo.TBL085 AS C
 
@@ -273,18 +224,107 @@ export async function getContractById(
                     ON CU.CardGuide = C.Currency
 
                 WHERE
-                    C.CardGuide = @CardGuide;
+                    C.TypeGuide = @TypeGuide
+
+                ORDER BY
+                    C.CardDate DESC;
             `);
 
+    return result.recordset.map(
+        (contract) => ({
+            CardGuide:
+                contract.CardGuide,
 
-        console.log(
-            "[EDIT] Header query finished"
-        );
+            ArcheiveName:
+                contract.ArcheiveName,
 
+            AgentName:
+                contract.AgentName,
+
+            WarehouseName:
+                contract.WarehouseName,
+
+            CurrencyName:
+                contract.CurrencyName,
+
+            CardDate:
+                contract.CardDate,
+
+            /*
+               SQL Server BIT can come back from mssql
+               as boolean.
+
+               Application type expects:
+               0 = not finished
+               1 = finished
+            */
+            Status:
+                Number(contract.Status ?? 0),
+
+            Total:
+                Number(contract.Total ?? 0),
+        })
+    );
+}
+
+/* =========================================================
+   GET CONTRACT BY ID
+========================================================= */
+
+export async function getContractById(
+    cardGuide: string
+): Promise<Contract> {
+    const pool = await getConnection();
+
+    try {
+        /* =====================================================
+           HEADER
+        ===================================================== */
+
+        const headerResult =
+            await pool
+                .request()
+                .input(
+                    "CardGuide",
+                    sql.UniqueIdentifier,
+                    cardGuide
+                )
+                .query(`
+                    SELECT
+                        C.CardGuide,
+
+                        C.AgentGuide01,
+                        A.AgentName,
+
+                        C.Currency,
+                        CU.CurrencyName,
+
+                        C.Store AS StoreID,
+                        W.WarehouseName,
+
+                        C.CardDate,
+                        C.ArcheiveName,
+                        C.Notes,
+
+                        C.Status
+
+                    FROM dbo.TBL085 AS C
+
+                    LEFT JOIN dbo.TBL016 AS A
+                        ON A.CardGuide = C.AgentGuide01
+
+                    LEFT JOIN dbo.TBL008 AS W
+                        ON W.CardGuide = C.Store
+
+                    LEFT JOIN dbo.TBL001 AS CU
+                        ON CU.CardGuide = C.Currency
+
+                    WHERE
+                        C.CardGuide = @CardGuide;
+                `);
 
         const header =
             headerResult.recordset[0];
-
 
         if (!header) {
             throw new AppError(
@@ -293,72 +333,137 @@ export async function getContractById(
             );
         }
 
+        /* =====================================================
+           PRODUCTS
+        ===================================================== */
 
-        /* =========================
-           GET CONTRACT PRODUCTS
-        ========================= */
+        const productsResult =
+            await pool
+                .request()
+                .input(
+                    "ContractGuide",
+                    sql.UniqueIdentifier,
+                    cardGuide
+                )
+                .query(`
+                    SELECT
+                        B.ID,
 
-        const productsResult = await pool
-            .request()
-            .input(
-                "ContractGuide",
-                sql.UniqueIdentifier,
-                cardGuide
-            )
-            .query(`
-                SELECT
-                    B.ItemGuide,
-                    B.NumberValue AS Quantity,
-                    B.NumberValue2 AS Price,
-                    B.Datevalue01 AS DeliveryDate,
-                    B.Delivered
+                        B.ItemGuide,
 
-                FROM dbo.TBL093 AS B
+                        I.ProductName,
 
-                WHERE
-                    B.MainGuide = @ContractGuide
-                    AND B.ItemGuide IS NOT NULL
-                    AND B.Datevalue01 IS NOT NULL;
-            `);
+                        B.NumberValue AS Quantity,
 
+                        B.NumberValue2 AS Price,
 
-        console.log(
-            "[EDIT] Products query finished"
-        );
+                        B.NumberValue3 AS Total,
 
+                        B.Datevalue01 AS DeliveryDate,
+
+                        B.Delivered
+
+                    FROM dbo.TBL093 AS B
+
+                    LEFT JOIN dbo.TBL007 AS I
+                        ON I.CardGuide = B.ItemGuide
+
+                    WHERE
+                        B.MainGuide = @ContractGuide
+
+                        AND B.ItemGuide IS NOT NULL
+
+                    ORDER BY
+                        B.Datevalue01,
+                        B.ID;
+                `);
+
+        const products =
+            productsResult.recordset;
+
+        const total =
+            products.length > 0
+                ? Number(products[0].Total ?? 0)
+                : 0;
 
         return {
-            ...header,
+            CardGuide:
+                header.CardGuide,
+
+            AgentGuide01:
+                header.AgentGuide01,
+
+            AgentName:
+                header.AgentName,
+
+            Currency:
+                header.Currency,
+
+            CurrencyName:
+                header.CurrencyName,
+
+            StoreID:
+                header.StoreID,
+
+            WarehouseName:
+                header.WarehouseName,
+
+            CardDate:
+                header.CardDate,
+
+            ArcheiveName:
+                header.ArcheiveName,
+
+            Notes:
+                header.Notes,
+
+            /*
+               Normalize SQL BIT → number
+            */
+            Status:
+                Number(header.Status ?? 0),
+
+            Total:
+                total,
 
             MainGuide:
                 cardGuide,
 
             Products:
-                productsResult.recordset.map(
+                products.map(
                     (product) => ({
-                        CardGuide: "",
+                        ID:
+                            product.ID,
+
+                        CardGuide:
+                            cardGuide,
 
                         ItemGuide:
                             product.ItemGuide,
 
                         Quantity:
-                            product.Quantity,
+                            Number(
+                                product.Quantity ?? 0
+                            ),
 
                         Price:
-                            product.Price,
+                            Number(
+                                product.Price ?? 0
+                            ),
 
                         DeliveryDate:
                             product.DeliveryDate,
 
                         Delivered:
-                            product.Delivered,
+                            Boolean(
+                                product.Delivered
+                            ),
                     })
                 ),
         };
-
     } catch (error) {
         console.error(
-            "[EDIT] GET CONTRACT ERROR:",
+            "[GET CONTRACT ERROR]",
             error
         );
 
@@ -366,10 +471,9 @@ export async function getContractById(
     }
 }
 
-
-/* =========================
-   UPDATE
-========================= */
+/* =========================================================
+   UPDATE CONTRACT
+========================================================= */
 
 export async function updateContract(
     cardGuide: string,
@@ -383,10 +487,9 @@ export async function updateContract(
     await transaction.begin();
 
     try {
-
-        /* =========================
-           UPDATE CONTRACT HEADER
-        ========================= */
+        /* =====================================================
+           UPDATE HEADER
+        ===================================================== */
 
         const updateResult =
             await new sql.Request(transaction)
@@ -427,19 +530,31 @@ export async function updateContract(
                 )
                 .query(`
                     UPDATE dbo.TBL085
-
                     SET
                         AgentGuide01 = @AgentGuide01,
+
                         Currency = @Currency,
+
                         Store = @StoreID,
+
                         CardDate = @CardDate,
+
                         ArcheiveName = @ArcheiveName,
-                        Notes = @Notes
+
+                        Notes = @Notes,
+
+                        /*
+                           Editing the contract recreates
+                           its products as undelivered.
+
+                           Therefore the contract must become
+                           unfinished again.
+                        */
+                        Status = 0
 
                     WHERE
                         CardGuide = @CardGuide;
                 `);
-
 
         if (
             updateResult.rowsAffected[0] === 0
@@ -450,10 +565,9 @@ export async function updateContract(
             );
         }
 
-
-        /* =========================
+        /* =====================================================
            DELETE OLD PRODUCTS
-        ========================= */
+        ===================================================== */
 
         await new sql.Request(transaction)
             .input(
@@ -468,13 +582,11 @@ export async function updateContract(
                     MainGuide = @ContractGuide;
             `);
 
-
-        /* =========================
-           INSERT UPDATED PRODUCTS
-        ========================= */
+        /* =====================================================
+           INSERT NEW PRODUCTS
+        ===================================================== */
 
         for (const product of data.Products) {
-
             await new sql.Request(transaction)
                 .input(
                     "MainGuide",
@@ -497,6 +609,11 @@ export async function updateContract(
                     product.Price
                 )
                 .input(
+                    "Total",
+                    sql.Decimal(18, 4),
+                    data.Total
+                )
+                .input(
                     "DeliveryDate",
                     sql.DateTime,
                     product.DeliveryDate
@@ -508,6 +625,7 @@ export async function updateContract(
                         ItemGuide,
                         NumberValue,
                         NumberValue2,
+                        NumberValue3,
                         Datevalue01,
                         Delivered
                     )
@@ -517,29 +635,28 @@ export async function updateContract(
                         @ItemGuide,
                         @Quantity,
                         @Price,
+                        @Total,
                         @DeliveryDate,
                         0
                     );
                 `);
         }
 
-
         await transaction.commit();
 
         return {
             CardGuide: cardGuide,
         };
-
     } catch (error) {
         await transaction.rollback();
+
         throw error;
     }
 }
 
-
-/* =========================
-   DELETE
-========================= */
+/* =========================================================
+   DELETE CONTRACT
+========================================================= */
 
 export async function deleteContract(
     cardGuide: string
@@ -552,10 +669,9 @@ export async function deleteContract(
     await transaction.begin();
 
     try {
-
-        /* =========================
+        /* =====================================================
            CHECK CONTRACT
-        ========================= */
+        ===================================================== */
 
         const contractResult =
             await new sql.Request(transaction)
@@ -574,7 +690,6 @@ export async function deleteContract(
                         CardGuide = @CardGuide;
                 `);
 
-
         if (
             contractResult.recordset.length === 0
         ) {
@@ -584,10 +699,9 @@ export async function deleteContract(
             );
         }
 
-
-        /* =========================
+        /* =====================================================
            DELETE PRODUCTS
-        ========================= */
+        ===================================================== */
 
         await new sql.Request(transaction)
             .input(
@@ -602,10 +716,9 @@ export async function deleteContract(
                     MainGuide = @ContractGuide;
             `);
 
-
-        /* =========================
+        /* =====================================================
            DELETE HEADER
-        ========================= */
+        ===================================================== */
 
         await new sql.Request(transaction)
             .input(
@@ -620,70 +733,50 @@ export async function deleteContract(
                     CardGuide = @CardGuide;
             `);
 
-
         await transaction.commit();
 
         return {
             CardGuide: cardGuide,
         };
-
     } catch (error) {
         await transaction.rollback();
+
         throw error;
     }
 }
 
-
-/* =========================
-   CHANGE TRACKING
-========================= */
-
-export async function getContractChanges(
-    lastVersion: number
-) {
+export async function getContractChanges(lastVersion: number) {
     const pool = await getConnection();
-
-
-    const dbInfo =
-        await pool
-            .request()
-            .query(`
-                SELECT
-                    @@SERVERNAME AS ServerName,
-                    DB_NAME() AS DatabaseName;
-            `);
-
-
-    console.log(
-        "[CONTRACT CHANGES DB]",
-        dbInfo.recordset[0]
-    );
-
 
     const result =
         await pool
             .request()
-            .input(
-                "LastVersion",
-                sql.BigInt,
-                lastVersion
-            )
+            .input("LastVersion", sql.BigInt, lastVersion)
+            .input("TypeGuide", sql.UniqueIdentifier, MAIN_GUIDE)
             .query(`
                 SELECT
-                    CT.SYS_CHANGE_VERSION
-                        AS ChangeVersion,
-
-                    CT.SYS_CHANGE_OPERATION
-                        AS ChangeOperation,
-
+                    CT.SYS_CHANGE_VERSION AS ChangeVersion,
+                    CT.SYS_CHANGE_OPERATION AS ChangeOperation,
                     CT.CardGuide,
 
                     T.ArcheiveName,
-                    T.AgentGuide01,
-                    T.Currency,
-                    T.Store AS StoreID,
                     T.CardDate,
-                    T.Notes
+                    T.Status,
+
+                    A.AgentName,
+                    W.WarehouseName,
+                    CU.CurrencyName,
+
+                    (
+                        SELECT TOP 1
+                            B.NumberValue3
+                        FROM dbo.TBL093 AS B
+                        WHERE
+                            B.MainGuide = T.CardGuide
+                            AND B.ItemGuide IS NOT NULL
+                        ORDER BY
+                            B.ID
+                    ) AS Total
 
                 FROM CHANGETABLE(
                     CHANGES dbo.TBL085,
@@ -693,10 +786,438 @@ export async function getContractChanges(
                 LEFT JOIN dbo.TBL085 AS T
                     ON T.CardGuide = CT.CardGuide
 
+                LEFT JOIN dbo.TBL016 AS A
+                    ON A.CardGuide = T.AgentGuide01
+
+                LEFT JOIN dbo.TBL008 AS W
+                    ON W.CardGuide = T.Store
+
+                LEFT JOIN dbo.TBL001 AS CU
+                    ON CU.CardGuide = T.Currency
+
+                WHERE
+                    (
+                        T.TypeGuide = @TypeGuide
+                        OR
+                        CT.SYS_CHANGE_OPERATION = 'D'
+                    )
+
                 ORDER BY
                     CT.SYS_CHANGE_VERSION;
             `);
 
+    return result.recordset.map((contract) => ({
+        ...contract,
+        Status: Number(contract.Status ?? 0),
+        Total: Number(contract.Total ?? 0),
+    }));
+}
+/* =========================================================
+   GET CONTRACT SCHEDULE
+========================================================= */
 
-    return result.recordset;
+export async function getContractSchedule(
+    cardGuide: string
+) {
+    const pool = await getConnection();
+
+    const result =
+        await pool
+            .request()
+            .input(
+                "ContractGuide",
+                sql.UniqueIdentifier,
+                cardGuide
+            )
+            .query(`
+                SELECT
+                    B.ID,
+
+                    B.ItemGuide,
+
+                    I.ProductName,
+
+                    B.NumberValue AS Quantity,
+
+                    B.NumberValue2 AS Price,
+
+                    B.Datevalue01 AS DeliveryDate,
+
+                    B.Delivered
+
+                FROM dbo.TBL093 AS B
+
+                LEFT JOIN dbo.TBL007 AS I
+                    ON I.CardGuide = B.ItemGuide
+
+                WHERE
+                    B.MainGuide = @ContractGuide
+
+                    AND B.ItemGuide IS NOT NULL
+
+                ORDER BY
+                    B.Datevalue01,
+                    B.ID;
+            `);
+
+    return result.recordset.map(
+        (product) => ({
+            ID:
+                product.ID,
+
+            ItemGuide:
+                product.ItemGuide,
+
+            ProductName:
+                product.ProductName,
+
+            Quantity:
+                Number(
+                    product.Quantity ?? 0
+                ),
+
+            Price:
+                Number(
+                    product.Price ?? 0
+                ),
+
+            DeliveryDate:
+                product.DeliveryDate,
+
+            Delivered:
+                Boolean(
+                    product.Delivered
+                ),
+        })
+    );
+}
+
+/* =========================================================
+   DELIVER CONTRACT PRODUCT
+========================================================= */
+
+export async function deliverContractProduct(
+    cardGuide: string,
+    id: number
+) {
+    const pool = await getConnection();
+
+    const transaction =
+        new sql.Transaction(pool);
+
+    await transaction.begin();
+
+    try {
+        /* =====================================================
+           CHECK CONTRACT
+        ===================================================== */
+
+        const contractResult =
+            await new sql.Request(transaction)
+                .input(
+                    "CardGuide",
+                    sql.UniqueIdentifier,
+                    cardGuide
+                )
+                .query(`
+                    SELECT
+                        CardGuide,
+                        Status
+
+                    FROM dbo.TBL085
+
+                    WHERE
+                        CardGuide = @CardGuide;
+                `);
+
+        if (
+            contractResult.recordset.length === 0
+        ) {
+            throw new AppError(
+                "Contract not found",
+                404
+            );
+        }
+
+        const contract =
+            contractResult.recordset[0];
+
+        /*
+           Normalize SQL BIT → number.
+        */
+        const contractFinished =
+            Number(
+                contract.Status ?? 0
+            ) === 1;
+
+        if (contractFinished) {
+            throw new AppError(
+                "Contract is already finished",
+                400
+            );
+        }
+
+        /* =====================================================
+           FIND PRODUCT
+        ===================================================== */
+
+        const productResult =
+            await new sql.Request(transaction)
+                .input(
+                    "ContractGuide",
+                    sql.UniqueIdentifier,
+                    cardGuide
+                )
+                .input(
+                    "ID",
+                    sql.Int,
+                    id
+                )
+                .query(`
+                    SELECT
+                        ID,
+
+                        ItemGuide,
+
+                        Delivered
+
+                    FROM dbo.TBL093
+
+                    WHERE
+                        ID = @ID
+
+                        AND MainGuide = @ContractGuide
+
+                        AND ItemGuide IS NOT NULL;
+                `);
+
+        if (
+            productResult.recordset.length === 0
+        ) {
+            throw new AppError(
+                "Product was not found",
+                404
+            );
+        }
+
+        const product =
+            productResult.recordset[0];
+
+        const alreadyDelivered =
+            Boolean(
+                product.Delivered
+            );
+
+        if (alreadyDelivered) {
+            throw new AppError(
+                "Product is already delivered",
+                400
+            );
+        }
+
+        /* =====================================================
+           MARK PRODUCT AS DELIVERED
+        ===================================================== */
+
+        const updateResult =
+            await new sql.Request(transaction)
+                .input(
+                    "ContractGuide",
+                    sql.UniqueIdentifier,
+                    cardGuide
+                )
+                .input(
+                    "ID",
+                    sql.Int,
+                    id
+                )
+                .query(`
+                    UPDATE dbo.TBL093
+
+                    SET
+                        Delivered = 1
+
+                    WHERE
+                        ID = @ID
+
+                        AND MainGuide = @ContractGuide
+
+                        AND ItemGuide IS NOT NULL
+
+                        AND ISNULL(
+                            Delivered,
+                            0
+                        ) = 0;
+                `);
+
+        if (
+            updateResult.rowsAffected[0] === 0
+        ) {
+            throw new AppError(
+                "Product could not be delivered",
+                400
+            );
+        }
+
+        /* =====================================================
+           CREATE BILL
+        ===================================================== */
+
+        await new sql.Request(transaction)
+            .input(
+                "archive_guide",
+                sql.UniqueIdentifier,
+                cardGuide
+            )
+            .execute(
+                "dbo.add_bill_contarcts"
+            );
+
+        /* =====================================================
+           COUNT PENDING PRODUCTS
+        ===================================================== */
+
+        const pendingResult =
+            await new sql.Request(transaction)
+                .input(
+                    "ContractGuide",
+                    sql.UniqueIdentifier,
+                    cardGuide
+                )
+                .query(`
+                    SELECT
+                        COUNT(*) AS PendingCount
+
+                    FROM dbo.TBL093
+
+                    WHERE
+                        MainGuide = @ContractGuide
+
+                        AND ItemGuide IS NOT NULL
+
+                        AND ISNULL(
+                            Delivered,
+                            0
+                        ) = 0;
+                `);
+
+        const pendingCount =
+            Number(
+                pendingResult.recordset[0]
+                    .PendingCount
+            );
+
+        /* =====================================================
+           COUNT REAL PRODUCTS
+        ===================================================== */
+
+        const productsResult =
+            await new sql.Request(transaction)
+                .input(
+                    "ContractGuide",
+                    sql.UniqueIdentifier,
+                    cardGuide
+                )
+                .query(`
+                    SELECT
+                        COUNT(*) AS ProductCount
+
+                    FROM dbo.TBL093
+
+                    WHERE
+                        MainGuide = @ContractGuide
+
+                        AND ItemGuide IS NOT NULL;
+                `);
+
+        const productCount =
+            Number(
+                productsResult.recordset[0]
+                    .ProductCount
+            );
+
+        /* =====================================================
+           FINISH CONTRACT
+        ===================================================== */
+
+        let finished = false;
+
+        /*
+           IMPORTANT BUSINESS RULE:
+
+           Only real product rows count.
+
+           Real product:
+               ItemGuide IS NOT NULL
+
+           Contract is finished when:
+
+               ProductCount > 0
+               AND PendingCount = 0
+        */
+
+        if (
+            productCount > 0 &&
+            pendingCount === 0
+        ) {
+            const statusResult =
+                await new sql.Request(transaction)
+                    .input(
+                        "CardGuide",
+                        sql.UniqueIdentifier,
+                        cardGuide
+                    )
+                    .query(`
+                        UPDATE dbo.TBL085
+
+                        SET
+                            Status = 1
+
+                        WHERE
+                            CardGuide = @CardGuide
+
+                            AND ISNULL(
+                                Status,
+                                0
+                            ) = 0;
+                    `);
+
+            /*
+               Even if Status was already 1,
+               the contract is logically finished.
+            */
+            finished =
+                statusResult.rowsAffected[0] > 0 ||
+                true;
+        }
+
+        /* =====================================================
+           COMMIT
+        ===================================================== */
+
+        await transaction.commit();
+
+        return {
+            CardGuide:
+                cardGuide,
+
+            ID:
+                id,
+
+            Delivered:
+                true,
+
+            Finished:
+                finished,
+        };
+    } catch (error) {
+        console.error(
+            "[DELIVER CONTRACT PRODUCT ERROR]",
+            error
+        );
+
+        await transaction.rollback();
+
+        throw error;
+    }
 }

@@ -5,134 +5,253 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-import { Check, Truck } from "lucide-react";
+import {
+    Check,
+    Truck,
+    Loader2,
+} from "lucide-react";
 
-import type { Contract } from "@/types/contracts.types";
+import { toast } from "@/components/ui/toast";
 
-type ProductSchedule = {
-    productName: string;
-    date: string;
-    quantity: number;
-    status: 0 | 1;
-};
+import {
+    deliverContractProductAction,
+} from "@/actions/contracts.action";
 
-type ContractSchedule = {
-    contractId: string;
-    agent: string;
-    currency: string;
-    warehouse: string;
-    date: string;
-    notes: string;
-    products: ProductSchedule[];
+import type {
+    Contract,
+} from "@/types/contracts.types";
+
+// =========================================================
+// TYPES
+// =========================================================
+
+type ScheduleProduct = {
+    ID: number;
+
+
+    ItemGuide: string;
+
+    ProductName: string;
+
+    Quantity: number;
+
+    Price: number;
+
+    DeliveryDate: Date;
+
+    Delivered: boolean;
+
+
 };
 
 type ScheduleContractClientProps = {
     contract: Contract;
+
+
+    schedule: ScheduleProduct[];
+
+
 };
+
+// =========================================================
+// COMPONENT
+// =========================================================
 
 export default function ScheduleContractClient({
     contract: contractData,
+    schedule,
 }: ScheduleContractClientProps) {
 
-    const scheduleData: ContractSchedule = {
-        contractId: contractData.CardGuide,
 
-        agent: contractData.AgentName,
+    /* =========================
+       STATE
+    ========================= */
 
-        currency: contractData.CurrencyName,
+    const [products, setProducts] =
+        useState<ScheduleProduct[]>(
+            schedule
+        );
 
-        warehouse: contractData.WarehouseName,
 
-        date: contractData.CardDate
-            ? new Date(
-                contractData.CardDate
-            ).toLocaleDateString()
-            : "",
+    const [deliveringId, setDeliveringId] =
+        useState<number | null>(null);
 
-        notes: contractData.Notes ?? "",
 
-        products: contractData.Products.map(
-            (product) => ({
-                productName: product.ItemGuide,
+    /* =========================
+       DELIVER PRODUCT
+    ========================= */
 
-                date: product.DeliveryDate
-                    ? new Date(
-                        product.DeliveryDate
-                    ).toLocaleDateString()
-                    : "",
-
-                quantity: product.Quantity,
-
-                status: product.Delivered
-                    ? 1
-                    : 0,
-            })
-        ),
-    };
-
-    const [contract, setContract] =
-        useState<ContractSchedule>(scheduleData);
-
-    function handleProductDeliver(
-        productIndex: number
+    async function handleProductDeliver(
+        productId: number
     ) {
-        setContract((prev) => ({
-            ...prev,
 
-            products: prev.products.map(
-                (product, index) =>
-                    index === productIndex
+        console.log(
+            "DELIVER PRODUCT:",
+            {
+                contractGuide:
+                    contractData.CardGuide,
+
+                productId,
+            }
+        );
+
+
+        setDeliveringId(productId);
+
+
+        try {
+
+            const result =
+                await deliverContractProductAction(
+                    contractData.CardGuide,
+                    productId
+                );
+
+
+            console.log(
+                "DELIVER RESULT:",
+                result
+            );
+
+
+            if (!result.success) {
+
+                toast.add({
+                    title:
+                        result.message ??
+                        "Failed to deliver product",
+                });
+
+                return;
+            }
+
+
+            /* =========================
+               UPDATE UI AFTER DB SUCCESS
+            ========================= */
+
+            setProducts((prev) =>
+                prev.map((product) =>
+                    product.ID === productId
                         ? {
                             ...product,
-                            status: 1,
+                            Delivered: true,
                         }
                         : product
-            ),
-        }));
+                )
+            );
+
+
+            toast.add({
+                title:
+                    "Product delivered successfully",
+            });
+
+
+            if (result.data?.Finished) {
+
+                toast.add({
+                    title:
+                        "All products are delivered. Contract finished!",
+                });
+
+            }
+
+        } catch (error) {
+
+            console.error(
+                "[DELIVER PRODUCT ERROR]",
+                error
+            );
+
+
+            toast.add({
+                title:
+                    "Failed to deliver product",
+            });
+
+        } finally {
+
+            setDeliveringId(null);
+
+        }
     }
+
+
+    /* =========================
+       CONTRACT FIELDS
+    ========================= */
 
     const contractFields = [
         {
-            label: "Agent",
-            value: contract.agent,
+            label: "Contract Name",
+            value: contractData.ArcheiveName,
         },
+
+        {
+            label: "Agent",
+            value: contractData.AgentName,
+        },
+
         {
             label: "Currency",
-            value: contract.currency,
+            value: contractData.CurrencyName,
         },
+
         {
             label: "Warehouse",
-            value: contract.warehouse,
+            value: contractData.WarehouseName,
         },
+
         {
             label: "Contract Date",
-            value: contract.date,
+            value: contractData.CardDate
+                ? new Date(
+                    contractData.CardDate
+                ).toLocaleDateString()
+                : "",
         },
+
         {
             label: "Notes",
-            value: contract.notes,
+            value: contractData.Notes ?? "",
         },
     ];
+
+
+    /* =========================
+       PRODUCT FIELDS
+    ========================= */
 
     const productFields = [
         {
             label: "Product",
-            key: "productName",
+            key: "ProductName",
         },
+
         {
             label: "Delivery Date",
-            key: "date",
+            key: "DeliveryDate",
         },
+
         {
             label: "Quantity",
-            key: "quantity",
+            key: "Quantity",
         },
     ] as const;
 
+
+    /* =========================
+       RENDER
+    ========================= */
+
     return (
+
         <div className="container mx-auto max-w-4xl py-10">
 
-            {/* Header */}
+            {/* =========================
+            HEADER
+        ========================= */}
 
             <div className="mb-8">
 
@@ -141,13 +260,15 @@ export default function ScheduleContractClient({
                 </h1>
 
                 <p className="mt-1 text-sm text-muted-foreground">
-                    Contract #{contract.contractId}
+                    Contract #{contractData.CardGuide}
                 </p>
 
             </div>
 
 
-            {/* Contract Information */}
+            {/* =========================
+            CONTRACT INFORMATION
+        ========================= */}
 
             <div className="rounded-lg border bg-card p-6">
 
@@ -155,28 +276,37 @@ export default function ScheduleContractClient({
                     Contract Information
                 </h2>
 
+
                 <div className="space-y-5">
 
-                    {contractFields.map((field) => (
-                        <div key={field.label}>
+                    {contractFields.map(
+                        (field) => (
 
-                            <p className="text-sm text-muted-foreground">
-                                {field.label}
-                            </p>
+                            <div
+                                key={field.label}
+                            >
 
-                            <p className="mt-1 font-medium">
-                                {field.value}
-                            </p>
+                                <p className="text-sm text-muted-foreground">
+                                    {field.label}
+                                </p>
 
-                        </div>
-                    ))}
+                                <p className="mt-1 font-medium">
+                                    {field.value}
+                                </p>
+
+                            </div>
+
+                        )
+                    )}
 
                 </div>
 
             </div>
 
 
-            {/* Products */}
+            {/* =========================
+            PRODUCTS
+        ========================= */}
 
             <div className="mt-8">
 
@@ -184,25 +314,35 @@ export default function ScheduleContractClient({
                     Products
                 </h2>
 
+
                 <div className="space-y-4">
 
-                    {contract.products.map(
+                    {products.map(
                         (product, index) => {
 
                             const delivered =
-                                product.status === 1;
+                                product.Delivered;
+
+
+                            const isDelivering =
+                                deliveringId === product.ID;
+
 
                             return (
+
                                 <div
-                                    key={index}
+                                    key={product.ID}
                                     className="rounded-lg border bg-card p-6"
                                 >
+
+                                    {/* PRODUCT HEADER */}
 
                                     <div className="mb-6 flex items-center justify-between">
 
                                         <h3 className="font-semibold">
                                             Product {index + 1}
                                         </h3>
+
 
                                         <Badge
                                             className={
@@ -211,18 +351,23 @@ export default function ScheduleContractClient({
                                                     : "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
                                             }
                                         >
+
                                             {delivered
                                                 ? "Delivered"
                                                 : "Pending"}
+
                                         </Badge>
 
                                     </div>
 
 
+                                    {/* PRODUCT INFORMATION */}
+
                                     <div className="grid gap-5 sm:grid-cols-3">
 
                                         {productFields.map(
                                             (field) => (
+
                                                 <div
                                                     key={field.key}
                                                 >
@@ -231,43 +376,98 @@ export default function ScheduleContractClient({
                                                         {field.label}
                                                     </p>
 
+
                                                     <p className="mt-1 font-medium">
-                                                        {
-                                                            product[
+
+                                                        {field.key ===
+                                                            "DeliveryDate"
+                                                            ? product.DeliveryDate
+                                                                ? new Date(
+                                                                    product.DeliveryDate
+                                                                ).toLocaleDateString()
+                                                                : ""
+                                                            : product[
                                                             field.key
-                                                            ]
-                                                        }
+                                                            ]}
+
                                                     </p>
 
                                                 </div>
+
                                             )
                                         )}
 
                                     </div>
 
 
+                                    {/* DELIVER BUTTON */}
+
                                     <div className="mt-6 flex justify-end">
 
                                         <Button
                                             type="button"
-                                            disabled={delivered}
+
+                                            disabled={
+                                                delivered ||
+                                                isDelivering
+                                            }
+
                                             onClick={() =>
                                                 handleProductDeliver(
-                                                    index
+                                                    product.ID
                                                 )
                                             }
                                         >
 
-                                            {delivered ? (
+                                            {isDelivering ? (
+
                                                 <>
-                                                    <Check className="mr-2 h-4 w-4" />
+
+                                                    <Loader2
+                                                        className="
+                                                        mr-2
+                                                        h-4
+                                                        w-4
+                                                        animate-spin
+                                                    "
+                                                    />
+
+                                                    Delivering...
+
+                                                </>
+
+                                            ) : delivered ? (
+
+                                                <>
+
+                                                    <Check
+                                                        className="
+                                                        mr-2
+                                                        h-4
+                                                        w-4
+                                                    "
+                                                    />
+
                                                     Delivered
+
                                                 </>
+
                                             ) : (
+
                                                 <>
-                                                    <Truck className="mr-2 h-4 w-4" />
+
+                                                    <Truck
+                                                        className="
+                                                        mr-2
+                                                        h-4
+                                                        w-4
+                                                    "
+                                                    />
+
                                                     Deliver
+
                                                 </>
+
                                             )}
 
                                         </Button>
@@ -275,7 +475,9 @@ export default function ScheduleContractClient({
                                     </div>
 
                                 </div>
+
                             );
+
                         }
                     )}
 
@@ -285,4 +487,6 @@ export default function ScheduleContractClient({
 
         </div>
     );
+
+
 }

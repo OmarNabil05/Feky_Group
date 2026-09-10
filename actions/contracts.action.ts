@@ -7,6 +7,8 @@ import {
     editContract,
     removeContract,
     getContractChange,
+    getSchedule,
+    deliverProduct,
 } from "@/services/contracts.service";
 
 import type {
@@ -15,14 +17,16 @@ import type {
 
 
 /* =========================
-   CREATE
+   CREATE CONTRACT
 ========================= */
 
 export async function createContractAction(
     data: InsertContractData
 ) {
     try {
-        const result = await createContract(data);
+
+        const result =
+            await createContract(data);
 
         return {
             success: true,
@@ -48,12 +52,14 @@ export async function createContractAction(
 
 
 /* =========================
-   GET ALL
+   GET ALL CONTRACTS
 ========================= */
 
 export async function getContractsAction() {
     try {
-        const result = await getContracts();
+
+        const result =
+            await getContracts();
 
         return {
             success: true,
@@ -79,7 +85,7 @@ export async function getContractsAction() {
 
 
 /* =========================
-   GET BY ID
+   GET CONTRACT BY ID
 ========================= */
 
 export async function getContractAction(
@@ -87,16 +93,8 @@ export async function getContractAction(
 ) {
     try {
 
-        console.log(
-            "[GET CONTRACT ACTION] ID:",
-            cardGuide
-        );
-
-        const result = await getContract(cardGuide);
-
-        console.log(
-            "[GET CONTRACT ACTION] SUCCESS"
-        );
+        const result =
+            await getContract(cardGuide);
 
         return {
             success: true,
@@ -122,7 +120,7 @@ export async function getContractAction(
 
 
 /* =========================
-   UPDATE
+   UPDATE CONTRACT
 ========================= */
 
 export async function updateContractAction(
@@ -131,10 +129,11 @@ export async function updateContractAction(
 ) {
     try {
 
-        const result = await editContract(
-            cardGuide,
-            data
-        );
+        const result =
+            await editContract(
+                cardGuide,
+                data
+            );
 
         return {
             success: true,
@@ -160,7 +159,7 @@ export async function updateContractAction(
 
 
 /* =========================
-   DELETE
+   DELETE CONTRACT
 ========================= */
 
 export async function deleteContractAction(
@@ -168,9 +167,10 @@ export async function deleteContractAction(
 ) {
     try {
 
-        const result = await removeContract(
-            cardGuide
-        );
+        const result =
+            await removeContract(
+                cardGuide
+            );
 
         return {
             success: true,
@@ -205,7 +205,9 @@ export async function GetContractChanges(
     try {
 
         const result =
-            await getContractChange(lastVersion);
+            await getContractChange(
+                lastVersion
+            );
 
         return {
             success: true,
@@ -225,6 +227,82 @@ export async function GetContractChanges(
                 error instanceof Error
                     ? error.message
                     : "Failed to get contract changes",
+        };
+    }
+}
+
+
+/* =========================
+   GET CONTRACT SCHEDULE
+========================= */
+
+export async function getContractScheduleAction(
+    cardGuide: string
+) {
+    try {
+
+        const result =
+            await getSchedule(
+                cardGuide
+            );
+
+        return {
+            success: true,
+            data: result,
+        };
+
+    } catch (error) {
+
+        console.error(
+            "[GET CONTRACT SCHEDULE ACTION ERROR]",
+            error
+        );
+
+        return {
+            success: false,
+            message:
+                error instanceof Error
+                    ? error.message
+                    : "Failed to load contract schedule",
+        };
+    }
+}
+
+
+/* =========================
+   DELIVER CONTRACT PRODUCT
+========================= */
+
+export async function deliverContractProductAction(
+    cardGuide: string,
+    id: number
+) {
+    try {
+
+        const result =
+            await deliverProduct(
+                cardGuide,
+                id
+            );
+
+        return {
+            success: true,
+            data: result,
+        };
+
+    } catch (error) {
+
+        console.error(
+            "[DELIVER CONTRACT PRODUCT ACTION ERROR]",
+            error
+        );
+
+        return {
+            success: false,
+            message:
+                error instanceof Error
+                    ? error.message
+                    : "Failed to deliver product",
         };
     }
 }

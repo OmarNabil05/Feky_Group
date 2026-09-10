@@ -1,48 +1,72 @@
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import {
     FormProvider,
     useForm,
+    useWatch,
 } from "react-hook-form";
+
+import { zodResolver } from "@hookform/resolvers/zod";
 
 import Selects from "./selects";
 import StaticFields from "./staticFields";
 import Body from "./body";
 
-import type {
-    DateSelectorValue,
-} from "@/components/ui/date-selector";
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
+import { toast } from "@/components/ui/toast";
 
 import {
     createContractAction,
     updateContractAction,
 } from "@/actions/contracts.action";
 
+import { ContractSchema } from "@/validations/contracts.validation";
+
+
+/* ==========================================================================
+   TYPES
+========================================================================== */
+
+export type ContractProductFormData = {
+    cardGuide: string;
+    productName: string;
+    date: string;
+    quantity: number;
+    price: number;
+
+    /*
+       This comes from the database.
+
+       It is displayed in edit/view mode,
+       but it is NOT sent back when creating/updating.
+    */
+    delivered: boolean;
+};
+
+
 export type ContractFormData = {
     contractName: string;
-
     agent: string;
     currency: string;
     warehouse: string;
-
-    date: DateSelectorValue;
+    date: string;
     notes: string;
-
-    products: {
-        cardGuide: string;
-        productName: string;
-        date: DateSelectorValue;
-        quantity: number;
-        price: number;
-    }[];
+    products: ContractProductFormData[];
 };
 
-export type ContractMode = "create" | "edit" | "view";
+
+export type ContractMode =
+    | "create"
+    | "edit"
+    | "view";
+
+
+/* ==========================================================================
+   BASIC TYPES
+========================================================================== */
 
 type Item = {
     CardGuide: string;
@@ -50,20 +74,28 @@ type Item = {
     ProductName: string;
 };
 
+
 type Agent = {
     CardGuide: string;
     AgentName: string;
 };
+
 
 type Currency = {
     CardGuide: string;
     CurrencyName: string;
 };
 
+
 type Warehouse = {
     CardGuide: string;
     WarehouseName: string;
 };
+
+
+/* ==========================================================================
+   PROPS
+========================================================================== */
 
 type ContractFormProps = {
     mode: ContractMode;
@@ -77,7 +109,43 @@ type ContractFormProps = {
     initialData?: Partial<ContractFormData>;
 
     cardGuide?: string;
+
+    /*
+       Contract Status from TBL085.
+
+       0 = not finished
+       1 = finished
+    */
+    status?: number;
 };
+
+
+/* ==========================================================================
+   DEFAULT PRODUCT
+========================================================================== */
+
+function createDefaultProduct(): ContractProductFormData {
+    return {
+        cardGuide: "",
+
+        productName: "",
+
+        date: new Date()
+            .toISOString()
+            .split("T")[0],
+
+        quantity: 1,
+
+        price: 0,
+
+        delivered: false,
+    };
+}
+
+
+/* ==========================================================================
+   COMPONENT
+========================================================================== */
 
 export default function ContractForm({
     mode,
@@ -87,201 +155,396 @@ export default function ContractForm({
     items,
     initialData,
     cardGuide,
+    status,
 }: ContractFormProps) {
 
-    const isView = mode === "view";
+    const isView =
+        mode === "view";
+
+
+    /* ==========================================================================
+       FORM
+    ========================================================================== */
 
     const form = useForm<ContractFormData>({
+        resolver: zodResolver(ContractSchema),
+
+        shouldUnregister: false,
+
         defaultValues: {
-            contractName: "",
 
-            agent: "",
-            currency: "",
-            warehouse: "",
+            contractName:
+                initialData?.contractName ?? "",
 
-            date: {
-                period: "day",
-                operator: "is",
-                startDate: new Date(),
-            },
+            agent:
+                initialData?.agent ?? "",
 
-            notes: "",
+            currency:
+                initialData?.currency ?? "",
 
-            products: [
-                {
-                    cardGuide: "",
-                    productName: "",
+            warehouse:
+                initialData?.warehouse ?? "",
 
-                    date: {
-                        period: "day",
-                        operator: "is",
-                        startDate: new Date(),
-                    },
+            date:
+                initialData?.date ??
+                new Date()
+                    .toISOString()
+                    .split("T")[0],
 
-                    quantity: 1,
-                    price: 0,
-                },
-            ],
+            notes:
+                initialData?.notes ?? "",
 
-            ...initialData,
+            products:
+                initialData?.products ??
+                [createDefaultProduct()],
         },
     });
 
-    async function handleSubmit(data: ContractFormData) {
+
+    /* ==========================================================================
+       WATCH PRODUCTS
+    ========================================================================== */
+
+    const products =
+        useWatch({
+            control: form.control,
+            name: "products",
+        }) ?? [];
+
+
+    /* ==========================================================================
+       CALCULATE TOTAL
+    ========================================================================== */
+
+    const total =
+        products.reduce(
+            (sum, product) =>
+                sum +
+                (Number(product.quantity) || 0) *
+                (Number(product.price) || 0),
+
+            0
+        );
+
+
+    /* ==========================================================================
+       SUBMIT
+    ========================================================================== */
+
+    async function handleSubmit(
+        data: ContractFormData
+    ) {
+
+        console.log(
+            "FORM VALIDATION PASSED"
+        );
+
+        console.log(
+            "FORM DATA:",
+            data
+        );
+
+
+        /* =========================
+           VIEW MODE
+        ========================= */
 
         if (mode === "view") {
             return;
         }
 
-        console.log("FORM DATA");
-        console.log(data);
 
-        /*
-        |--------------------------------------------------------------------------
-        | CREATE
-        |--------------------------------------------------------------------------
-        */
+        /* ==========================================================================
+           BACKEND DATA
+        ========================================================================== */
+
+        const contractData = {
+
+            AgentGuide01:
+                data.agent,
+
+            Currency:
+                data.currency,
+
+            StoreID:
+                data.warehouse,
+
+            CardDate:
+                new Date(data.date),
+
+            ArcheiveName:
+                data.contractName,
+
+            Notes:
+                data.notes,
+
+            /*
+               Total is calculated from
+               quantity × price for every product.
+            */
+            Total:
+                data.products.reduce(
+                    (sum, product) =>
+                        sum +
+                        product.quantity *
+                        product.price,
+
+                    0
+                ),
+
+            /*
+               Delivered is intentionally NOT sent.
+
+               Delivery status belongs to
+               the delivery workflow/database.
+            */
+            Products:
+                data.products.map(
+                    (product) => ({
+
+                        ItemGuide:
+                            product.cardGuide,
+
+                        Quantity:
+                            product.quantity,
+
+                        Price:
+                            product.price,
+
+                        DeliveryDate:
+                            new Date(product.date),
+
+                    })
+                ),
+        };
+
+
+        console.log(
+            "CONTRACT DATA:",
+            contractData
+        );
+
+
+        /* ==========================================================================
+           CREATE
+        ========================================================================== */
 
         if (mode === "create") {
 
-            if (!data.date.startDate) {
-                console.error("Contract date is required");
-                return;
-            }
+            console.log(
+                "CREATING CONTRACT..."
+            );
 
-            for (const product of data.products) {
-                if (!product.date.startDate) {
-                    console.error("Delivery date is required");
-                    return;
-                }
-            }
 
-            const contractData = {
-                AgentGuide01: data.agent,
-                Currency: data.currency,
-                StoreID: data.warehouse,
-                CardDate: data.date.startDate,
+            const result =
+                await createContractAction(
+                    contractData
+                );
 
-                // NEW
-                ArcheiveName: data.contractName,
 
-                Notes: data.notes,
+            console.log(
+                "CREATE RESULT:",
+                result
+            );
 
-                Products: data.products.map((product) => ({
-                    ItemGuide: product.cardGuide,
-                    Quantity: product.quantity,
-                    Price: product.price,
-                    DeliveryDate: product.date.startDate!,
-                })),
-            };
-
-            console.log("CONTRACT DATA");
-            console.log(contractData);
-
-            const result = await createContractAction(contractData);
-
-            console.log("CREATE RESULT");
-            console.log(result);
 
             if (!result.success) {
-                console.error("Failed to create contract");
+
+                toast.add({
+                    type: "error",
+                    title: "Error",
+                    description:
+                        result.message ||
+                        "Failed to create contract",
+                });
+
                 return;
             }
 
-            console.log("Contract created successfully");
+
+            toast.add({
+                type: "success",
+                title: "Success",
+                description:
+                    "Contract inserted successfully",
+            });
+
 
             form.reset();
 
             return;
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | EDIT
-        |--------------------------------------------------------------------------
-        */
+
+        /* ==========================================================================
+           EDIT
+        ========================================================================== */
 
         if (mode === "edit") {
 
-            if (!cardGuide) {
-                console.error("Contract CardGuide is required for edit");
-                return;
-            }
-
-            if (!data.date.startDate) {
-                console.error("Contract date is required");
-                return;
-            }
-
-            for (const product of data.products) {
-                if (!product.date.startDate) {
-                    console.error("Delivery date is required");
-                    return;
-                }
-            }
-
-            const contractData = {
-                AgentGuide01: data.agent,
-                Currency: data.currency,
-                StoreID: data.warehouse,
-                CardDate: data.date.startDate,
-
-                // NEW
-                ArcheiveName: data.contractName,
-
-                Notes: data.notes,
-
-                Products: data.products.map((product) => ({
-                    ItemGuide: product.cardGuide,
-                    Quantity: product.quantity,
-                    Price: product.price,
-                    DeliveryDate: product.date.startDate!,
-                })),
-            };
-
-            console.log("UPDATE CONTRACT DATA");
-            console.log(contractData);
-
-            const result = await updateContractAction(
-                cardGuide,
-                contractData
+            console.log(
+                "UPDATING CONTRACT..."
             );
 
-            console.log("UPDATE RESULT");
-            console.log(result);
 
-            if (!result.success) {
-                console.error("Failed to update contract");
+            /* =========================
+               CARD GUIDE CHECK
+            ========================= */
+
+            if (!cardGuide) {
+
+                console.error(
+                    "Contract CardGuide is missing"
+                );
+
+                toast.add({
+                    type: "error",
+                    title: "Error",
+                    description:
+                        "Contract ID is missing",
+                });
+
                 return;
             }
 
-            console.log("Contract updated successfully");
+
+            console.log(
+                "CONTRACT CARD GUIDE:",
+                cardGuide
+            );
+
+
+            /* =========================
+               UPDATE
+            ========================= */
+
+            const result =
+                await updateContractAction(
+                    cardGuide,
+                    contractData
+                );
+
+
+            console.log(
+                "UPDATE RESULT:",
+                result
+            );
+
+
+            if (!result.success) {
+
+                toast.add({
+                    type: "error",
+                    title: "Error",
+                    description:
+                        result.message ||
+                        "Failed to update contract",
+                });
+
+                return;
+            }
+
+
+            toast.add({
+                type: "success",
+                title: "Success",
+                description:
+                    "Contract updated successfully",
+            });
 
             return;
         }
     }
 
+
+    /* ==========================================================================
+       VALIDATION ERROR
+    ========================================================================== */
+
+    function handleValidationError(
+        errors: any
+    ) {
+
+        console.error(
+            "FORM VALIDATION ERRORS:",
+            errors
+        );
+
+
+        toast.add({
+            type: "error",
+            title: "Validation Error",
+            description:
+                "Please fix the form errors",
+        });
+    }
+
+
+    /* ==========================================================================
+       RENDER
+    ========================================================================== */
+
     return (
+
         <FormProvider {...form}>
 
             <form
-                onSubmit={form.handleSubmit(handleSubmit)}
+                onSubmit={
+                    form.handleSubmit(
+                        handleSubmit,
+                        handleValidationError
+                    )
+                }
+
                 className="flex flex-col gap-4"
             >
 
+                {/* ==========================================================
+                    CONTRACT HEADER
+                ========================================================== */}
+
                 <div className="flex flex-col gap-4">
 
-                    {/* Contract Name - FIRST INPUT */}
-                    <div className="flex flex-col gap-2">
 
+                    {/* ======================================================
+                        CONTRACT NAME
+                    ====================================================== */}
+
+                    <div className="flex flex-col gap-2">
 
                         <Input
                             id="contractName"
+
                             placeholder="Enter contract name"
+
                             disabled={isView}
-                            {...form.register("contractName")}
+
+                            {...form.register(
+                                "contractName"
+                            )}
                         />
+
+                        {form.formState.errors.contractName && (
+
+                            <p className="text-sm font-medium text-destructive">
+
+                                {
+                                    form.formState
+                                        .errors
+                                        .contractName
+                                        .message
+                                }
+
+                            </p>
+
+                        )}
+
                     </div>
+
+
+                    {/* ======================================================
+                        SELECTS
+                    ====================================================== */}
 
                     <Selects
                         Agents={Agents}
@@ -290,30 +553,112 @@ export default function ContractForm({
                         disabled={isView}
                     />
 
+
+                    {/* ======================================================
+                        STATIC FIELDS
+                    ====================================================== */}
+
                     <StaticFields
                         disabled={isView}
                     />
 
+
+                    {/* ======================================================
+                        CONTRACT STATUS
+                    ====================================================== */}
+
+                    {mode !== "create" && (
+
+                        <div className="flex items-center gap-3">
+
+                            <span className="font-medium">
+                                Contract Status:
+                            </span>
+
+                            <span
+                                className={
+                                    status === 1
+                                        ? "font-semibold text-green-600"
+                                        : "font-semibold text-yellow-600"
+                                }
+                            >
+                                {status === 1
+                                    ? "Finished"
+                                    : "In Progress"}
+                            </span>
+
+                        </div>
+
+                    )}
+
                 </div>
+
+
+                {/* ==========================================================
+                    PRODUCTS
+                ========================================================== */}
 
                 <Body
                     items={items}
                     disabled={isView}
                 />
 
+
+                {/* ==========================================================
+                    TOTAL
+                ========================================================== */}
+
+                <div className="flex justify-end">
+
+                    <div className="flex items-center gap-3 text-lg font-semibold bg-green-500 dark:bg-green-900 py-2 px-5 rounded-4xl text-white">
+
+                        <span>
+                            Total:
+                        </span>
+
+                        <span>
+                            {total.toLocaleString(
+                                undefined,
+                                {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                }
+                            )}
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                {/* ==========================================================
+                    SUBMIT
+                ========================================================== */}
+
                 {!isView && (
+
                     <div className="flex justify-end">
 
                         <Button
                             type="submit"
-                            className="rounded-md bg-primary px-4 py-2 text-primary-foreground"
+
+                            className="
+                                rounded-md
+                                bg-primary
+                                px-4
+                                py-2
+                                text-primary-foreground
+                            "
                         >
+
                             {mode === "edit"
                                 ? "Update Contract"
                                 : "Create Contract"}
+
                         </Button>
 
                     </div>
+
                 )}
 
             </form>

@@ -4,7 +4,8 @@ import ContractTable from "./contract-table";
 
 export default async function ViewContractPage() {
 
-    const result = await getContractsAction();
+    const result =
+        await getContractsAction();
 
     if (!result.success) {
         return (
@@ -16,7 +17,8 @@ export default async function ViewContractPage() {
         );
     }
 
-    const contracts = result.data ?? [];
+    const contracts =
+        result.data ?? [];
 
     return (
         <div className="container mx-auto py-10">

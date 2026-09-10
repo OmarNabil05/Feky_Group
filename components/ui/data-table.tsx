@@ -80,7 +80,7 @@ import {
 } from "@/components/ui/dialog"
 
 import { toast } from "@/components/ui/toast"
-import { Separator } from '@/components/ui/separator';
+import { Separator } from "@/components/ui/separator"
 import { Card } from "./card"
 
 
@@ -136,9 +136,23 @@ type DataTableFeatures = typeof features
 // COLUMN CONFIG
 // =========================================================
 
-type ColumnHeaders<TData> = {
+export type ColumnHeaders<TData> = {
     Header: string
-    Accessor: Extract<keyof TData, string>
+
+    Accessor: Extract<
+        keyof TData,
+        string
+    >
+
+    Cell?: (
+        value: TData[
+            Extract<
+                keyof TData,
+                string
+            >
+        ],
+        row: TData
+    ) => React.ReactNode
 }
 
 
@@ -153,10 +167,20 @@ export type DeleteResult = {
 
 export type DataTableAction<TData> = {
     label: string
+
     icon?: React.ReactNode
-    onClick: (row: TData) => void | Promise<void>
-    disabled?: (row: TData) => boolean
-    hidden?: (row: TData) => boolean
+
+    onClick: (
+        row: TData
+    ) => void | Promise<void>
+
+    disabled?: (
+        row: TData
+    ) => boolean
+
+    hidden?: (
+        row: TData
+    ) => boolean
 }
 
 
@@ -210,46 +234,23 @@ type EditFormProps<TData> = {
 // DATA TABLE PROPS
 // =========================================================
 
-type DataTableProps<TData extends RowData> = {
+type DataTableProps<
+    TData extends RowData
+> = {
     ColumnHeaders: ColumnHeaders<TData>[]
 
     data: TData[]
 
     features?: DataTableFeatureConfig
 
-    /*
-     * Must return a unique ID for every row.
-     *
-     * Example:
-     *
-     * getRowId={(item) => item.CardCode!}
-     */
     getRowId: (
         row: TData
     ) => string
 
-    /*
-     * Create form.
-     *
-     * The form must call:
-     *
-     * onSuccess(createdRow)
-     *
-     * after the database insert succeeds.
-     */
     createForm?: (
         props: CreateFormProps<TData>
     ) => React.ReactNode
 
-    /*
-     * Edit form.
-     *
-     * The form must call:
-     *
-     * onSuccess(updatedRow)
-     *
-     * after the database update succeeds.
-     */
     editForm?: (
         props: EditFormProps<TData>
     ) => React.ReactNode
@@ -276,18 +277,14 @@ export default function DataTable<
     createForm,
     editForm,
     onDelete,
-    customActions
+    customActions,
 }: DataTableProps<TData>) {
+
 
     // =====================================================
     // FEATURE CONFIG
     // =====================================================
 
-    /*
-     * Everything is enabled by default except create.
-     *
-     * This keeps the old DataTable behavior.
-     */
     const featureConfig = {
         search: true,
         sorting: true,
@@ -312,34 +309,24 @@ export default function DataTable<
     // LOCAL TABLE MUTATIONS
     // =====================================================
 
-    /*
-     * `data` remains the server-provided source of truth.
-     *
-     * These states are only temporary UI overlays.
-     *
-     * addedRows
-     * -> rows created locally but not yet present
-     *    in the server-provided `data`.
-     *
-     * updatedRows
-     * -> temporarily replaces edited rows.
-     *
-     * deletedRowIds
-     * -> temporarily hides deleted rows.
-     */
-
     const [addedRows, setAddedRows] =
-        React.useState<Map<string, TData>>(
+        React.useState<
+            Map<string, TData>
+        >(
             () => new Map()
         )
 
     const [deletedRowIds, setDeletedRowIds] =
-        React.useState<Set<string>>(
+        React.useState<
+            Set<string>
+        >(
             () => new Set()
         )
 
     const [updatedRows, setUpdatedRows] =
-        React.useState<Map<string, TData>>(
+        React.useState<
+            Map<string, TData>
+        >(
             () => new Map()
         )
 
@@ -347,21 +334,6 @@ export default function DataTable<
     // =====================================================
     // TABLE DATA
     // =====================================================
-
-    /*
-     * Build the rows displayed by the table.
-     *
-     * Result:
-     *
-     * locally added rows
-     * +
-     * server rows
-     *
-     * while applying local edits/deletes.
-     *
-     * If the parent later refreshes and the created row
-     * appears in `data`, we don't add it twice.
-     */
 
     const tableData =
         React.useMemo(() => {
@@ -374,10 +346,6 @@ export default function DataTable<
                     )
                 )
 
-
-            // ---------------------------------------------
-            // LOCALLY ADDED ROWS
-            // ---------------------------------------------
 
             const locallyAddedRows =
                 Array.from(
@@ -396,10 +364,6 @@ export default function DataTable<
                             ) ?? row
                     )
 
-
-            // ---------------------------------------------
-            // SERVER ROWS
-            // ---------------------------------------------
 
             const serverRows =
                 data
@@ -436,16 +400,22 @@ export default function DataTable<
     // =====================================================
 
     const [sorting, setSorting] =
-        React.useState<SortingState>([])
+        React.useState<SortingState>(
+            []
+        )
 
     const [globalFilter, setGlobalFilter] =
         React.useState("")
 
     const [columnVisibility, setColumnVisibility] =
-        React.useState<ColumnVisibilityState>({})
+        React.useState<ColumnVisibilityState>(
+            {}
+        )
 
     const [rowSelection, setRowSelection] =
-        React.useState<RowSelectionState>({})
+        React.useState<RowSelectionState>(
+            {}
+        )
 
 
     // =====================================================
@@ -464,7 +434,9 @@ export default function DataTable<
     // =====================================================
 
     const [editingRow, setEditingRow] =
-        React.useState<TData | null>(null)
+        React.useState<TData | null>(
+            null
+        )
 
     const [editDialogOpen, setEditDialogOpen] =
         React.useState(false)
@@ -491,12 +463,10 @@ export default function DataTable<
             return
         }
 
-
         setCreateFormKey(
             (value) =>
                 value + 1
         )
-
 
         setCreateDialogOpen(true)
     }
@@ -513,11 +483,6 @@ export default function DataTable<
         const rowId =
             getRowId(newRow)
 
-
-        // ---------------------------------------------
-        // Add the new row immediately
-        // ---------------------------------------------
-
         setAddedRows(
             (current) => {
 
@@ -533,11 +498,6 @@ export default function DataTable<
             }
         )
 
-
-        // ---------------------------------------------
-        // Make sure it isn't marked deleted
-        // ---------------------------------------------
-
         setDeletedRowIds(
             (current) => {
 
@@ -550,11 +510,6 @@ export default function DataTable<
             }
         )
 
-
-        // ---------------------------------------------
-        // Remove any old local edit
-        // ---------------------------------------------
-
         setUpdatedRows(
             (current) => {
 
@@ -566,11 +521,6 @@ export default function DataTable<
                 return next
             }
         )
-
-
-        // ---------------------------------------------
-        // Close dialog
-        // ---------------------------------------------
 
         setCreateDialogOpen(false)
     }
@@ -596,7 +546,6 @@ export default function DataTable<
             return
         }
 
-
         setEditingRow(row)
 
         setEditFormKey(
@@ -619,11 +568,6 @@ export default function DataTable<
         const rowId =
             getRowId(updatedRow)
 
-
-        // ---------------------------------------------
-        // Store updated row
-        // ---------------------------------------------
-
         setUpdatedRows(
             (current) => {
 
@@ -639,11 +583,6 @@ export default function DataTable<
             }
         )
 
-
-        // ---------------------------------------------
-        // If it was deleted locally, restore it
-        // ---------------------------------------------
-
         setDeletedRowIds(
             (current) => {
 
@@ -655,12 +594,6 @@ export default function DataTable<
                 return next
             }
         )
-
-
-        // ---------------------------------------------
-        // If this is a locally-added row,
-        // update its local version too.
-        // ---------------------------------------------
 
         setAddedRows(
             (current) => {
@@ -680,11 +613,6 @@ export default function DataTable<
                 return next
             }
         )
-
-
-        // ---------------------------------------------
-        // Close dialog
-        // ---------------------------------------------
 
         setEditDialogOpen(false)
 
@@ -712,12 +640,10 @@ export default function DataTable<
             return
         }
 
-
         try {
 
             const result =
                 await onDelete(row)
-
 
             if (!result.success) {
 
@@ -732,14 +658,8 @@ export default function DataTable<
                 return
             }
 
-
             const rowId =
                 getRowId(row)
-
-
-            // ---------------------------------------------
-            // Hide deleted row
-            // ---------------------------------------------
 
             setDeletedRowIds(
                 (current) => {
@@ -753,11 +673,6 @@ export default function DataTable<
                 }
             )
 
-
-            // ---------------------------------------------
-            // Remove local added version
-            // ---------------------------------------------
-
             setAddedRows(
                 (current) => {
 
@@ -769,11 +684,6 @@ export default function DataTable<
                     return next
                 }
             )
-
-
-            // ---------------------------------------------
-            // Remove local edited version
-            // ---------------------------------------------
 
             setUpdatedRows(
                 (current) => {
@@ -787,11 +697,6 @@ export default function DataTable<
                 }
             )
 
-
-            // ---------------------------------------------
-            // Remove from selection
-            // ---------------------------------------------
-
             setRowSelection(
                 (current) => {
 
@@ -804,7 +709,6 @@ export default function DataTable<
                     return next
                 }
             )
-
 
             toast.add({
                 type: "success",
@@ -851,7 +755,6 @@ export default function DataTable<
         const rows =
             getSelectedRows()
 
-
         if (!rows.length) {
 
             toast.add({
@@ -863,7 +766,6 @@ export default function DataTable<
 
             return
         }
-
 
         try {
 
@@ -884,11 +786,9 @@ export default function DataTable<
                     )
                     .join("\n")
 
-
             await navigator.clipboard.writeText(
                 text
             )
-
 
             toast.add({
                 type: "success",
@@ -927,10 +827,8 @@ export default function DataTable<
             return
         }
 
-
         const rows =
             getSelectedRows()
-
 
         if (!rows.length) {
 
@@ -944,21 +842,15 @@ export default function DataTable<
             return
         }
 
-
         try {
 
-            /*
-             * Delete one by one for now.
-             */
             const successfulIds =
                 new Set<string>()
-
 
             for (const row of rows) {
 
                 const result =
                     await onDelete(row)
-
 
                 if (!result.success) {
 
@@ -973,21 +865,14 @@ export default function DataTable<
                     break
                 }
 
-
                 successfulIds.add(
                     getRowId(row)
                 )
             }
 
-
             if (!successfulIds.size) {
                 return
             }
-
-
-            // ---------------------------------------------
-            // Hide successful deletes
-            // ---------------------------------------------
 
             setDeletedRowIds(
                 (current) => {
@@ -1006,11 +891,6 @@ export default function DataTable<
                 }
             )
 
-
-            // ---------------------------------------------
-            // Remove locally-added rows
-            // ---------------------------------------------
-
             setAddedRows(
                 (current) => {
 
@@ -1027,11 +907,6 @@ export default function DataTable<
                     return next
                 }
             )
-
-
-            // ---------------------------------------------
-            // Remove edited versions
-            // ---------------------------------------------
 
             setUpdatedRows(
                 (current) => {
@@ -1050,13 +925,7 @@ export default function DataTable<
                 }
             )
 
-
-            // ---------------------------------------------
-            // Clear selection
-            // ---------------------------------------------
-
             setRowSelection({})
-
 
             toast.add({
                 type: "success",
@@ -1092,10 +961,8 @@ export default function DataTable<
             return ""
         }
 
-
         return `"${String(value)
             .replaceAll('"', '""')}"`
-
     }
 
 
@@ -1120,7 +987,6 @@ export default function DataTable<
             return
         }
 
-
         const headers =
             ColumnHeaders
                 .map(
@@ -1130,7 +996,6 @@ export default function DataTable<
                         )
                 )
                 .join(",")
-
 
         const body =
             rows
@@ -1149,14 +1014,8 @@ export default function DataTable<
                 )
                 .join("\n")
 
-
-        /*
-         * BOM helps Excel recognize
-         * UTF-8 / Arabic / Unicode text.
-         */
         const csv =
             `\ufeff${headers}\n${body}`
-
 
         const blob =
             new Blob(
@@ -1167,18 +1026,14 @@ export default function DataTable<
                 }
             )
 
-
         const url =
             URL.createObjectURL(blob)
-
 
         const link =
             document.createElement("a")
 
-
         link.href = url
         link.download = filename
-
 
         document.body.appendChild(link)
 
@@ -1187,7 +1042,6 @@ export default function DataTable<
         document.body.removeChild(link)
 
         URL.revokeObjectURL(url)
-
 
         toast.add({
             type: "success",
@@ -1303,6 +1157,42 @@ export default function DataTable<
                             enableHiding:
                                 featureConfig.columnVisibility,
 
+
+                            // =================================
+                            // CELL DISPLAY
+                            // =================================
+
+                            cell: ({
+                                getValue,
+                                row,
+                            }) => {
+
+                                const value =
+                                    getValue()
+
+                                if (column.Cell) {
+
+                                    return column.Cell(
+                                        value as TData[
+                                        Extract<
+                                            keyof TData,
+                                            string
+                                        >
+                                        ],
+                                        row.original
+                                    )
+                                }
+
+                                return String(
+                                    value ?? ""
+                                )
+                            },
+
+
+                            // =================================
+                            // HEADER
+                            // =================================
+
                             header: ({
                                 column:
                                 tableColumn,
@@ -1311,19 +1201,12 @@ export default function DataTable<
                                 const sorted =
                                     tableColumn.getIsSorted()
 
-
-                                /*
-                                 * If sorting and hiding
-                                 * are both disabled,
-                                 * just display the title.
-                                 */
                                 if (
                                     !featureConfig.sorting &&
                                     !featureConfig.columnVisibility
                                 ) {
                                     return column.Header
                                 }
-
 
                                 return (
 
@@ -1344,7 +1227,6 @@ export default function DataTable<
                                                     column.Header
                                                 }
                                             </span>
-
 
                                             {featureConfig.sorting && (
 
@@ -1457,7 +1339,6 @@ export default function DataTable<
                         header: "Actions",
 
                         enableHiding: false,
-
                         enableSorting: false,
 
                         cell: ({
@@ -1479,7 +1360,6 @@ export default function DataTable<
                                             2
                                         )
                                     )
-
 
                                     toast.add({
                                         type: "success",
@@ -1601,25 +1481,43 @@ export default function DataTable<
                                                 </DropdownMenuItem>
 
                                             )}
-                                        {customActions?.map((action) => {
 
-                                            if (action.hidden?.(item)) {
-                                                return null
+
+                                        {customActions?.map(
+                                            (action) => {
+
+                                                if (
+                                                    action.hidden?.(
+                                                        item
+                                                    )
+                                                ) {
+                                                    return null
+                                                }
+
+                                                return (
+                                                    <DropdownMenuItem
+                                                        key={
+                                                            action.label
+                                                        }
+                                                        disabled={
+                                                            action.disabled?.(
+                                                                item
+                                                            )
+                                                        }
+                                                        onClick={() =>
+                                                            action.onClick(
+                                                                item
+                                                            )
+                                                        }
+                                                    >
+                                                        {action.icon}
+                                                        {
+                                                            action.label
+                                                        }
+                                                    </DropdownMenuItem>
+                                                )
                                             }
-
-                                            return (
-                                                <DropdownMenuItem
-                                                    key={action.label}
-                                                    disabled={action.disabled?.(item)}
-                                                    onClick={() =>
-                                                        action.onClick(item)
-                                                    }
-                                                >
-                                                    {action.icon}
-                                                    {action.label}
-                                                </DropdownMenuItem>
-                                            )
-                                        })}
+                                        )}
 
                                     </DropdownMenuContent>
 
@@ -1691,13 +1589,13 @@ export default function DataTable<
 
     return (
 
-        <Card className="sm:w-150 lg:w-full overflow-hidden mx-auto p-5 ">
+        <Card className="sm:w-150 lg:w-full overflow-hidden mx-auto p-5">
 
             {/* =================================================
                 TOOLBAR
             ================================================= */}
 
-            <div className="flex flex-col lg:flex-row lg:flex-wrap items-center justify-between gap-3   py-4 w-full ">
+            <div className="flex flex-col lg:flex-row lg:flex-wrap items-center justify-between gap-3 py-4 w-full">
 
                 {featureConfig.search ? (
 
@@ -1719,11 +1617,7 @@ export default function DataTable<
                 )}
 
 
-                <div className="flex flex-wrap items-center  gap-1">
-
-                    {/* =========================================
-                        CREATE
-                    ========================================= */}
+                <div className="flex flex-wrap items-center gap-1">
 
                     {featureConfig.create &&
                         createForm && (
@@ -1739,10 +1633,6 @@ export default function DataTable<
 
                         )}
 
-
-                    {/* =========================================
-                        SELECTED ACTIONS
-                    ========================================= */}
 
                     {featureConfig.selection &&
                         selectedCount > 0 && (
@@ -1785,10 +1675,6 @@ export default function DataTable<
 
                         )}
 
-
-                    {/* =========================================
-                        EXPORT
-                    ========================================= */}
 
                     {featureConfig.export && (
 
@@ -1860,10 +1746,6 @@ export default function DataTable<
 
                     )}
 
-
-                    {/* =========================================
-                        COLUMN VISIBILITY
-                    ========================================= */}
 
                     {featureConfig.columnVisibility && (
 
@@ -2051,7 +1933,12 @@ export default function DataTable<
                     </TableBody>
 
                 </Table>
-                <Separator orientation="horizontal" className="ml-1  " />
+
+                <Separator
+                    orientation="horizontal"
+                    className="ml-1"
+                />
+
 
                 {/* =================================================
                     PAGINATION
@@ -2059,8 +1946,7 @@ export default function DataTable<
 
                 {featureConfig.pagination && (
 
-                    <div className="flex flex-col-reverse gap-1 lg:flex-row  items-center  justify-between px-2 py-2 ">
-
+                    <div className="flex flex-col-reverse gap-1 lg:flex-row items-center justify-between px-2 py-2">
 
                         <div className="flex-1 text-sm text-muted-foreground">
 
@@ -2079,9 +1965,9 @@ export default function DataTable<
                         </div>
 
 
-                        <div className="flex flex-row:items-center justify-between   gap-2">
+                        <div className="flex flex-row:items-center justify-between gap-2">
 
-                            <div className="flex justify-center  items-center space-x-1">
+                            <div className="flex justify-center items-center space-x-1">
 
                                 <p className="text-sm font-medium">
                                     Rows per page
@@ -2120,7 +2006,8 @@ export default function DataTable<
                                         side="top"
                                     >
 
-                                        {[5,
+                                        {[
+                                            5,
                                             10,
                                             20,
                                             25,

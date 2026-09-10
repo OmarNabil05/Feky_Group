@@ -41,7 +41,8 @@ export default function Selects({
     disabled = false,
 }: SelectsProps) {
 
-    const form = useFormContext<ContractFormData>();
+    const form =
+        useFormContext<ContractFormData>();
 
     const agentOptions = Agents.map((agent) => ({
         value: agent.CardGuide,
@@ -58,86 +59,115 @@ export default function Selects({
         label: warehouse.WarehouseName,
     }));
 
-
     return (
         <div className="flex flex-col gap-4 w-full">
 
             {/* AGENT */}
 
-            <Controller
-                control={form.control}
-                name="agent"
-                render={({ field }) => (
+            <div>
 
-                    <div
-                        className={
-                            disabled
-                                ? "pointer-events-none opacity-60"
-                                : ""
-                        }
-                    >
-                        <Combobox
-                            options={agentOptions}
-                            placeholder="Select Agent"
-                            value={field.value}
-                            onChange={field.onChange}
-                        />
-                    </div>
+                <Controller
+                    control={form.control}
+                    name="agent"
+                    render={({ field }) => (
 
+                        <div
+                            className={
+                                disabled
+                                    ? "pointer-events-none opacity-60"
+                                    : ""
+                            }
+                        >
+                            <Combobox
+                                options={agentOptions}
+                                placeholder="Select Agent"
+                                value={field.value ?? ""}
+                                onChange={field.onChange}
+                            />
+                        </div>
+
+                    )}
+                />
+
+                {form.formState.errors.agent && (
+                    <p className="text-sm font-medium text-destructive">
+                        {form.formState.errors.agent.message}
+                    </p>
                 )}
-            />
+
+            </div>
 
 
             {/* CURRENCY */}
 
-            <Controller
-                control={form.control}
-                name="currency"
-                render={({ field }) => (
+            <div>
 
-                    <div
-                        className={
-                            disabled
-                                ? "pointer-events-none opacity-60"
-                                : ""
-                        }
-                    >
-                        <Combobox
-                            options={currencyOptions}
-                            placeholder="Select Currency"
-                            value={field.value}
-                            onChange={field.onChange}
-                        />
-                    </div>
+                <Controller
+                    control={form.control}
+                    name="currency"
+                    render={({ field }) => (
 
+                        <div
+                            className={
+                                disabled
+                                    ? "pointer-events-none opacity-60"
+                                    : ""
+                            }
+                        >
+                            <Combobox
+                                options={currencyOptions}
+                                placeholder="Select Currency"
+                                value={field.value ?? ""}
+                                onChange={field.onChange}
+                            />
+                        </div>
+
+                    )}
+                />
+
+                {form.formState.errors.currency && (
+                    <p className="text-sm font-medium text-destructive">
+                        {form.formState.errors.currency.message}
+                    </p>
                 )}
-            />
+
+            </div>
 
 
             {/* WAREHOUSE */}
 
-            <Controller
-                control={form.control}
-                name="warehouse"
-                render={({ field }) => (
+            <div>
 
-                    <div
-                        className={
-                            disabled
-                                ? "pointer-events-none opacity-60"
-                                : ""
-                        }
-                    >
-                        <Combobox
-                            options={wareHouseOptions}
-                            placeholder="Select WareHouses"
-                            value={field.value}
-                            onChange={field.onChange}
-                        />
-                    </div>
+                <Controller
+                    control={form.control}
+                    name="warehouse"
+                    render={({ field }) => (
 
+                        <div
+                            className={
+                                disabled
+                                    ? "pointer-events-none opacity-60"
+                                    : ""
+                            }
+                        >
+                            <Combobox
+                                options={wareHouseOptions}
+                                placeholder="Select WareHouses"
+                                value={field.value ?? ""}
+                                onChange={field.onChange}
+                            />
+                        </div>
+
+                    )}
+                />
+
+                {form.formState.errors.warehouse && (
+                    <p className="text-sm font-medium text-destructive">
+                        {form.formState.errors.warehouse.message}
+                    </p>
                 )}
-            />
+
+            </div>
 
         </div>
     );

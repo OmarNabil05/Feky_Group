@@ -1,13 +1,9 @@
 "use client";
 
-import {
-    DateSelector,
-} from "@/components/ui/date-selector";
-
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 import {
-    Controller,
     useFormContext,
 } from "react-hook-form";
 
@@ -15,60 +11,62 @@ import type {
     ContractFormData,
 } from "./contract-form";
 
+
 type StaticFieldsProps = {
     disabled?: boolean;
 };
+
 
 export default function StaticFields({
     disabled = false,
 }: StaticFieldsProps) {
 
-    const form = useFormContext<ContractFormData>();
+    const form =
+        useFormContext<ContractFormData>();
+
 
     return (
         <div className="flex flex-col gap-4">
 
             {/* CONTRACT DATE */}
 
-            <Controller
-                control={form.control}
-                name="date"
-                render={({ field }) => (
+            <div className="flex flex-col gap-1">
 
-                    <div
-                        className={
-                            disabled
-                                ? "pointer-events-none opacity-60"
-                                : ""
-                        }
-                    >
-                        <DateSelector
-                            value={field.value}
-                            onChange={field.onChange}
-                            className=""
-                        />
-                    </div>
+                <label>
+                    Contract Date
+                </label>
 
+                <Input
+                    type="date"
+                    disabled={disabled}
+                    {...form.register("date")}
+                />
+
+                {form.formState.errors.date && (
+                    <p className="text-sm font-medium text-destructive">
+                        {form.formState.errors.date.message}
+                    </p>
                 )}
-            />
+
+            </div>
 
 
             {/* NOTES */}
 
-            <Controller
-                control={form.control}
-                name="notes"
-                render={({ field }) => (
-
-                    <Textarea
-                        maxLength={20}
-                        value={field.value}
-                        placeholder="Type your message here."
-                        disabled={disabled}
-                        onChange={field.onChange}
-                    />
-
-                )}
+            <Textarea
+                maxLength={20}
+                value={form.watch("notes")}
+                placeholder="Type your message here."
+                disabled={disabled}
+                onChange={(e) =>
+                    form.setValue(
+                        "notes",
+                        e.target.value,
+                        {
+                            shouldDirty: true,
+                        }
+                    )
+                }
             />
 
         </div>
