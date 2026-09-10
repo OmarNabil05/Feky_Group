@@ -325,7 +325,7 @@ type UseDateSelectorProps = {
 
 export function useDateSelector({
   value,
-  onChange,
+
   defaultPeriodType = "day",
   defaultFilterType = "is",
   presetMode,
@@ -703,9 +703,9 @@ export function useDateSelector({
     }
   }, [presetMode]);
 
-  useEffect(() => {
-    onChange?.(currentValue);
-  }, [currentValue, onChange]);
+  // useEffect(() => {
+  //   onChange?.(currentValue);
+  // }, [currentValue, onChange]);
 
   return {
     periodType,
@@ -1697,33 +1697,34 @@ export function DateSelector({
             onOpenChange={setOpen}
           >
             <div className="relative">
-              <PopoverTrigger render={<Input
-                type="text"
-                value={
-                  inputHint
-                    ? inputValue
-                    : displayValue
-                }
-                readOnly={!inputHint}
-                placeholder={
-                  isInputFocused &&
+              <PopoverTrigger
+                nativeButton={false} render={<Input
+                  type="text"
+                  value={
                     inputHint
-                    ? inputHint
-                    : mergedI18n.placeholder
-                }
-                onFocus={() =>
-                  setIsInputFocused(
-                    true
-                  )
-                }
-                onBlur={
-                  handleInputBlur
-                }
-                onChange={
-                  handleInputChange
-                }
-                className="cursor-pointer"
-              />} >
+                      ? inputValue
+                      : displayValue
+                  }
+                  readOnly={!inputHint}
+                  placeholder={
+                    isInputFocused &&
+                      inputHint
+                      ? inputHint
+                      : mergedI18n.placeholder
+                  }
+                  onFocus={() =>
+                    setIsInputFocused(
+                      true
+                    )
+                  }
+                  onBlur={
+                    handleInputBlur
+                  }
+                  onChange={
+                    handleInputChange
+                  }
+                  className="cursor-pointer"
+                />} >
 
               </PopoverTrigger>
 

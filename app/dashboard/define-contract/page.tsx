@@ -1,24 +1,29 @@
-
-import Selects from "./selects";
-
 import {
     GETAgents,
     GETCurrency,
     GETWarehouses,
 } from "@/actions/BasicFunctions/Basic-function";
-import StaticFields from "./staticFields";
-import { Card, CardHeader } from "@/components/ui/card";
-import Body from "./body";
+
+import { getItemsAction } from "@/actions/items.action";
+
+import { Card } from "@/components/ui/card";
+
+import ContractForm from "./contract-form";
 
 export default async function ContractsPage() {
+
     const agents = await GETAgents();
     const currency = await GETCurrency();
     const warehouses = await GETWarehouses();
 
+    const items = await getItemsAction(0, 10000);
+
+
     if (
         !agents.success ||
         !currency.success ||
-        !warehouses.success
+        !warehouses.success ||
+        !items.success
     ) {
         return (
             <Card className="container mx-auto py-10">
@@ -29,22 +34,16 @@ export default async function ContractsPage() {
         );
     }
 
-    return (<div className="flex flex-col justify-center gap-4">
 
-        <Card className=" p-2">
+    return (
+        <ContractForm
+            mode="create"
 
-            <Selects
-                Agents={agents.data ?? []}
-                Currency={currency.data ?? []}
-                WareHouses={warehouses.data ?? []}
-            />
-            <StaticFields />
-        </Card>
+            Agents={agents.data ?? []}
+            Currency={currency.data ?? []}
+            WareHouses={warehouses.data ?? []}
 
-        <Card>
-            <Body/>
-        </Card>
-    </div>
+            items={items.data ?? []}
+        />
     );
 }
-

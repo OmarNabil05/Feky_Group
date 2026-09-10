@@ -81,10 +81,11 @@ export async function searchForItems(
 ) {
 
     if (!search.trim()) {
-        throw new AppError(
-            "Search value is required",
-            400
-        );
+        const items = await getAllItems(0, 5);
+        if (!items) {
+            throw new AppError("no data loaded", 401);
+        }
+        return items;
     }
 
     if (offset < 0 || limit <= 0) {

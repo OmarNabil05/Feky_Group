@@ -151,6 +151,14 @@ export type DeleteResult = {
     message?: string
 }
 
+export type DataTableAction<TData> = {
+    label: string
+    icon?: React.ReactNode
+    onClick: (row: TData) => void | Promise<void>
+    disabled?: (row: TData) => boolean
+    hidden?: (row: TData) => boolean
+}
+
 
 // =========================================================
 // FEATURE CONFIG
@@ -249,6 +257,8 @@ type DataTableProps<TData extends RowData> = {
     onDelete?: (
         row: TData
     ) => Promise<DeleteResult>
+
+    customActions?: DataTableAction<TData>[]
 }
 
 
@@ -266,6 +276,7 @@ export default function DataTable<
     createForm,
     editForm,
     onDelete,
+    customActions
 }: DataTableProps<TData>) {
 
     // =====================================================
@@ -1590,6 +1601,25 @@ export default function DataTable<
                                                 </DropdownMenuItem>
 
                                             )}
+                                        {customActions?.map((action) => {
+
+                                            if (action.hidden?.(item)) {
+                                                return null
+                                            }
+
+                                            return (
+                                                <DropdownMenuItem
+                                                    key={action.label}
+                                                    disabled={action.disabled?.(item)}
+                                                    onClick={() =>
+                                                        action.onClick(item)
+                                                    }
+                                                >
+                                                    {action.icon}
+                                                    {action.label}
+                                                </DropdownMenuItem>
+                                            )
+                                        })}
 
                                     </DropdownMenuContent>
 
